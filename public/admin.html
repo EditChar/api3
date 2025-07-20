@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli</title>
+    <link rel="stylesheet" href="style.css"> </head>
+<body>
+    <div class="admin-container">
+        <header>
+            <h1>Test Yönetim Paneli</h1>
+            <button id="logoutButton">Çıkış Yap</button>
+        </header>
+        
+        <div class="content">
+            <div class="actions">
+                <button id="showCreateTestSetFormButton">Yeni Test Seti Oluştur</button>
+            </div>
+
+            <div id="createTestSetFormContainer" class="form-container" style="display:none;">
+                <h3>Yeni Test Seti Oluştur</h3>
+                <form id="createTestSetForm">
+                    <div>
+                        <label for="testSetTitle">Test Başlığı:</label>
+                        <input type="text" id="testSetTitle" required>
+                    </div>
+                    <div>
+                        <label for="testSetDescription">Açıklama (Opsiyonel):</label>
+                        <textarea id="testSetDescription"></textarea>
+                    </div>
+                    <button type="submit">Oluştur</button>
+                    <button type="button" id="cancelCreateTestSet">İptal</button>
+                </form>
+            </div>
+
+            <div id="editTestSetFormContainer" class="form-container" style="display:none;">
+                <h3>Test Setini Düzenle</h3>
+                <form id="editTestSetForm">
+                    <input type="hidden" id="editTestSetId">
+                    <div>
+                        <label for="editTestSetTitle">Test Başlığı:</label>
+                        <input type="text" id="editTestSetTitle" required>
+                    </div>
+                    <div>
+                        <label for="editTestSetDescription">Açıklama (Opsiyonel):</label>
+                        <textarea id="editTestSetDescription"></textarea>
+                    </div>
+                    <button type="submit">Güncelle</button>
+                    <button type="button" id="cancelEditTestSet">İptal</button>
+                </form>
+            </div>
+
+            <h2>Mevcut Test Setleri</h2>
+            <div id="testSetsListContainer">
+                <!-- Test setleri buraya JavaScript ile yüklenecek -->
+                <p>Yükleniyor...</p>
+            </div>
+
+            <hr>
+
+            <div id="questionsContainer" style="display:none;">
+                <h2 id="selectedTestSetTitle"></h2>
+                <button id="showAddQuestionFormButton">Bu Test Setine Soru Ekle</button>
+                <div id="addQuestionFormContainer" class="form-container" style="display:none;">
+                    <h3>Yeni Soru Ekle</h3>
+                    <form id="addQuestionForm">
+                        <div>
+                            <label for="questionText">Soru Metni:</label>
+                            <textarea id="questionText" required></textarea>
+                        </div>
+                        <h4>Cevaplar (Her soru için 5 cevap ve puanı girilmelidir)</h4>
+                        <div id="answersInputContainer">
+                            <!-- Cevap inputları buraya JS ile eklenecek -->
+                        </div>
+                        <button type="button" id="addAnswerOptionButton" style="margin-bottom: 10px;">Cevap Seçeneği Ekle (+)</button>
+                        <br>
+                        <button type="submit">Soruyu Kaydet</button>
+                        <button type="button" id="cancelAddQuestion">İptal</button>
+                    </form>
+                </div>
+
+                <h3>Test Setindeki Sorular</h3>
+                <div id="questionsListContainer">
+                    <!-- Sorular buraya JS ile yüklenecek -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html> 

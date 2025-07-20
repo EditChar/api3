@@ -1,0 +1,357 @@
+/* Genel Stiller */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    margin: 0;
+    line-height: 1.6;
+    /* Ortalama için Flexbox - tüm sayfalarda body içeriğini ortalamaya çalışır */
+    display: flex;
+    flex-direction: column; /* admin panelinin normal akışını korumak için */
+    align-items: center; /* Yatayda ortala */
+    min-height: 100vh; /* Sayfa yüksekliğini en az ekran kadar yap */
+}
+
+.admin-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 20px auto; /* Üst ve altta boşluk, yanlarda otomatik ortalama */
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    /* admin-container'ın body flex ayarlarından etkilenmemesi için gerekebilir */
+    /* align-self: flex-start; Eğer admin paneli yukarı yapışık isteniyorsa */
+    /* Şimdilik margin: 20px auto ile kendi ortalamasını koruyacak */
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #2c3e50;
+    font-size: 1.8em;
+    margin: 0;
+}
+
+/* Butonlar */
+button, .button-style { /* Genel buton stili için bir sınıf ekledim */
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.3s ease;
+    text-decoration: none; /* Linkler için */
+    display: inline-block; /* Linkler için */
+}
+
+button:hover, .button-style:hover {
+    background-color: #2980b9;
+}
+
+button.danger-btn {
+    background-color: #e74c3c;
+}
+button.danger-btn:hover {
+    background-color: #c0392b;
+}
+
+button.secondary-btn {
+    background-color: #95a5a6;
+}
+button.secondary-btn:hover {
+    background-color: #7f8c8d;
+}
+
+/* Görünürlük toggle butonları */
+.visibility-btn-hide {
+    background-color: #e67e22;
+}
+.visibility-btn-hide:hover {
+    background-color: #d35400;
+}
+
+.visibility-btn-show {
+    background-color: #27ae60;
+}
+.visibility-btn-show:hover {
+    background-color: #229954;
+}
+
+#logoutButton {
+    background-color: #e74c3c;
+}
+#logoutButton:hover {
+    background-color: #c0392b;
+}
+
+.actions {
+    margin-bottom: 20px;
+}
+
+/* Formlar */
+.form-container {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.form-container h3 {
+    margin-top: 0;
+    color: #34495e;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.form-container div {
+    margin-bottom: 15px;
+}
+
+.form-container label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form-container input[type="text"],
+.form-container input[type="password"], /* Login formu için */
+.form-container textarea,
+.form-container input[type="number"] { /* Puan için */
+    width: calc(100% - 22px); /* padding ve border hesaba katıldı */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.form-container textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-container button[type="submit"] {
+    margin-right: 10px;
+}
+
+/* Listeler (Test Setleri, Sorular) */
+#testSetsListContainer ul, #questionsListContainer ul {
+    list-style: none;
+    padding: 0;
+}
+
+#testSetsListContainer li, #questionsListContainer li {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    position: relative;
+}
+
+/* Test görünürlük stilleri */
+.test-item {
+    position: relative;
+}
+
+.test-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 5px 0 0 5px;
+}
+
+.test-item-visible::before {
+    background-color: #27ae60; /* Yeşil şerit */
+}
+
+.test-item-hidden {
+    opacity: 0.6;
+    background-color: #f8f9fa;
+}
+
+.test-item-hidden::before {
+    background-color: #e74c3c; /* Kırmızı şerit */
+}
+
+.test-item-content {
+    margin-left: 15px; /* Sol şerit için boşluk */
+}
+
+#testSetsListContainer li strong, #questionsListContainer li strong {
+    color: #2980b9;
+    font-size: 1.1em;
+}
+
+#testSetsListContainer li div, #questionsListContainer li div { /* Butonları içeren div */
+    margin-top: 10px;
+}
+#testSetsListContainer li div button, #questionsListContainer li div button {
+    margin-right: 8px;
+    font-size: 0.9em;
+    padding: 8px 12px;
+}
+
+
+/* Soru Ekleme Formundaki Cevap Alanları */
+.answer-option {
+    display: flex;
+    gap: 10px; /* Elemanlar arası boşluk */
+    margin-bottom: 10px;
+    align-items: center;
+}
+.answer-option textarea {
+    flex-grow: 1; /* Metin alanı genişlesin */
+    min-height: 40px;
+}
+.answer-option input[type="number"] {
+    width: 80px; /* Puan alanı için sabit genişlik */
+}
+.answer-option button { /* Cevap silme butonu */
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+
+
+/* Login Sayfası Stilleri (mevcutları biraz daha iyileştirelim) */
+.login-container {
+    background-color: #fff;
+    padding: 40px; 
+    border-radius: 10px; /* Daha yumuşak köşeler */
+    box-shadow: 0 6px 25px rgba(0,0,0,0.15); /* Daha belirgin gölge */
+    width: 360px; /* Biraz daha geniş */
+    text-align: center; 
+    /* Body flex ile ortalandığı için margin:auto yeterli olabilir veya spesifik margin-top */
+    margin-top: 5vh; /* Sayfanın biraz üstünden başlasın */
+    margin-bottom: 5vh;
+}
+
+.login-container h2 {
+    margin-bottom: 25px;
+    color: #2c3e50;
+    font-size: 1.8em; /* Biraz daha büyük başlık */
+    font-weight: 600;
+}
+
+.login-container div {
+    margin-bottom: 20px;
+    text-align: left; 
+}
+
+.login-container label {
+    display: block;
+    margin-bottom: 8px;
+    color: #495057; /* Biraz daha koyu label rengi */
+    font-weight: 500; /* Biraz daha ince font */
+}
+
+.login-container input[type="text"],
+.login-container input[type="password"] {
+    width: calc(100% - 24px); 
+    padding: 12px; 
+    border: 1px solid #ced4da; /* Daha standart border rengi */
+    border-radius: 5px; /* Butonlarla uyumlu border-radius */
+    font-size: 1em;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.login-container input[type="text"]:focus,
+.login-container input[type="password"]:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(52,152,219,.25);
+}
+
+.login-container button {
+    width: 100%;
+    padding: 12px;
+    background-color: #3498db; 
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em; 
+    transition: background-color 0.3s ease;
+    font-weight: 500;
+}
+
+.login-container button:hover {
+    background-color: #2980b9;
+}
+
+.error-message {
+    color: #e74c3c; 
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.9em;
+    padding: 10px;
+    background-color: #f8d7da; /* Daha yumuşak hata arkaplanı */
+    border: 1px solid #f5c6cb; /* Daha yumuşak hata borderı */
+    border-radius: 5px;
+    display: none; 
+}
+#loginForm .error-message {
+    display: block; 
+    /* Eğer mesaj yoksa görünmesin diye JS ile de yönetilebilir, ama şimdilik CSS ile bırakalım */
+    /* Eğer errorMessageElement.textContent boş ise, JS ile display:none yapılabilir. */
+}
+
+
+hr {
+    border: 0;
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 30px 0;
+}
+
+/* Genel İyileştirmeler */
+h2, h3 {
+    color: #34495e;
+}
+
+#selectedTestSetTitle {
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+/* Responsive (Basit) */
+@media (max-width: 768px) {
+    .admin-container {
+        width: 95%;
+        padding: 15px;
+    }
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    header h1 {
+        margin-bottom: 10px;
+    }
+    .login-container {
+        width: 90%;
+    }
+    .answer-option {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .answer-option input[type="number"] {
+        width: 100%; /* Mobilde tam genişlik */
+        margin-top: 5px;
+    }
+} 

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Disconnected</div>
+    <div id="logs"></div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(message) {
+            const p = document.createElement('p');
+            p.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            logsDiv.appendChild(p);
+            console.log(message);
+        }
+
+        // Test token (gerçek uygulamada auth'dan alınır)
+        const testToken = 'test-token-123';
+
+        log('Attempting to connect to Socket.IO server...');
+
+        const socket = io('http://localhost:3001', {
+            auth: {
+                token: testToken
+            },
+            transports: ['websocket', 'polling'],
+            timeout: 20000,
+            forceNew: true
+        });
+
+        socket.on('connect', () => {
+            statusDiv.textContent = 'Connected: ' + socket.id;
+            statusDiv.style.color = 'green';
+            log('✅ Connected to server with ID: ' + socket.id);
+        });
+
+        socket.on('connect_error', (error) => {
+            statusDiv.textContent = 'Connection Error: ' + error.message;
+            statusDiv.style.color = 'red';
+            log('❌ Connection error: ' + error.message);
+        });
+
+        socket.on('disconnect', (reason) => {
+            statusDiv.textContent = 'Disconnected: ' + reason;
+            statusDiv.style.color = 'orange';
+            log('🔌 Disconnected: ' + reason);
+        });
+
+        socket.on('error', (error) => {
+            log('⚠️ Socket error: ' + error);
+        });
+
+        // Test room join
+        setTimeout(() => {
+            if (socket.connected) {
+                log('Testing room join...');
+                socket.emit('join_room', 'test-room-123');
+            }
+        }, 2000);
+    </script>
+</body>
+</html> 
