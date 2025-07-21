@@ -104,6 +104,23 @@ export const login = async (req: Request, res: Response) => {
     const tokens = await generateAndSaveTokens(user, res);
     
     res.status(200).json({ ...tokens, user: { id: user.id, username: user.username, role: user.role } });
+
+    // Login başarılı olduktan sonra
+    if (user.id) {
+      // 🔒 GÜVENLİK: Login sırasında kullanıcının eski notification'larını temizle
+      try {
+        await pool.query(`
+          UPDATE notifications 
+          SET is_read = true 
+          WHERE user_id = $1 AND created_at < NOW() - INTERVAL '1 day'
+        `, [user.id]);
+        
+        console.log(`🔒 Cleared old notifications for user ${user.id} on login`);
+      } catch (cleanupError) {
+        console.warn('Error cleaning old notifications on login:', cleanupError);
+      }
+    }
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Error logging in' });
@@ -197,7 +214,23 @@ export const logout = async (req: AuthenticatedRequest, res: Response) => {
     );
 
     console.log(`User ${userId} logged out. ${deleteResult.rowCount} refresh token(s) deleted.`);
-    res.status(200).json({ message: 'Successfully logged out' });
+
+    // 🔒 GÜVENLİK: Logout sırasında kullanıcının tüm FCM token'larını deaktif et
+    await pool.query(`
+      UPDATE device_tokens 
+      SET is_active = false, updated_at = NOW()
+      WHERE user_id = $1 AND is_active = true
+    `, [userId]);
+
+    // push_devices tablosundaki token'ları da deaktif et  
+    await pool.query(`
+      UPDATE push_devices 
+      SET is_active = false, last_updated = NOW()
+      WHERE user_id = $1 AND is_active = true
+    `, [userId]);
+
+    console.log(`🔒 Deactivated all FCM tokens for user ${userId} on logout`);
+
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ message: 'Error logging out' });

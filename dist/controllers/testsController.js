@@ -3,9 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toggleTestVisibility = exports.deleteTest = exports.updateTest = exports.getTestById = exports.getAllTests = exports.createTest = void 0;
+exports.deleteTest = exports.toggleTestVisibility = exports.updateTest = exports.getTestById = exports.getAllTests = exports.createTest = void 0;
 const database_1 = __importDefault(require("../config/database"));
-const kafkaService_1 = __importDefault(require("../services/kafkaService"));
 // Yeni bir test seti oluşturma
 const createTest = async (req, res) => {
     const { title, description } = req.body;
@@ -32,30 +31,17 @@ const getAllTests = async (req, res) => {
         let queryParams;
         if (userId) {
             // Kullanıcı giriş yapmışsa, tamamladığı testleri hariç tut ve sadece görünür testleri göster
-            if (req.user?.role === 'admin') {
-                // Admin tüm testleri görebilir (görünür/gizli fark etmez)
-                query = `
-          SELECT t.*, u.username as creator_username 
-          FROM tests t 
-          LEFT JOIN users u ON t.created_by = u.id 
-          LEFT JOIN user_test_responses utr ON t.id = utr.test_id AND utr.user_id = $1
-          WHERE utr.test_id IS NULL AND t.deleted_at IS NULL
-          ORDER BY t.created_at DESC
-        `;
-                queryParams = [userId];
-            }
-            else {
-                // Normal kullanıcı sadece görünür ve tamamlamadığı testleri görebilir
-                query = `
-          SELECT t.*, u.username as creator_username 
-          FROM tests t 
-          LEFT JOIN users u ON t.created_by = u.id 
-          LEFT JOIN user_test_responses utr ON t.id = utr.test_id AND utr.user_id = $1
-          WHERE utr.test_id IS NULL AND t.deleted_at IS NULL AND t.is_visible = true
-          ORDER BY t.created_at DESC
-        `;
-                queryParams = [userId];
-            }
+            query = `
+        SELECT t.*, u.username as creator_username 
+        FROM tests t 
+        LEFT JOIN users u ON t.created_by = u.id 
+        LEFT JOIN user_test_responses utr ON t.id = utr.test_id AND utr.user_id = $1
+        WHERE utr.test_id IS NULL AND t.deleted_at IS NULL AND (t.is_visible = true OR $2 = true)
+        ORDER BY t.created_at DESC
+      `;
+            // Admin rolü kontrolü: admin ise tüm testleri göster, değilse sadece görünür olanları
+            const isAdmin = req.user?.role === 'admin';
+            queryParams = [userId, isAdmin];
         }
         else {
             // Kullanıcı giriş yapmamışsa, sadece görünür testleri göster
@@ -149,6 +135,30 @@ const updateTest = async (req, res) => {
     }
 };
 exports.updateTest = updateTest;
+// Test görünürlüğünü değiştirme (gizle/göster)
+const toggleTestVisibility = async (req, res) => {
+    const { testId } = req.params;
+    const userId = req.user?.id;
+    try {
+        // Mevcut görünürlük durumunu al
+        const currentTest = await database_1.default.query('SELECT is_visible FROM tests WHERE id = $1', [testId]);
+        if (currentTest.rows.length === 0) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+        // Görünürlük durumunu tersine çevir
+        const newVisibility = !currentTest.rows[0].is_visible;
+        const result = await database_1.default.query('UPDATE tests SET is_visible = $1 WHERE id = $2 RETURNING id, title, is_visible', [newVisibility, testId]);
+        res.status(200).json({
+            message: newVisibility ? 'Test successfully made visible' : 'Test successfully hidden',
+            test: result.rows[0]
+        });
+    }
+    catch (error) {
+        console.error('Error toggling test visibility:', error);
+        res.status(500).json({ message: 'Error toggling test visibility' });
+    }
+};
+exports.toggleTestVisibility = toggleTestVisibility;
 // Bir test setini silme (bağlı tüm kayıtlarla birlikte)
 const deleteTest = async (req, res) => {
     const { testId } = req.params;
@@ -200,59 +210,3 @@ const deleteTest = async (req, res) => {
     }
 };
 exports.deleteTest = deleteTest;
-// Test görünürlüğünü toggle etme (gizle/göster)
-const toggleTestVisibility = async (req, res) => {
-    const { testId } = req.params;
-    const userId = req.user?.id;
-    try {
-        // Önce testin mevcut durumunu kontrol et
-        const testCheckResult = await database_1.default.query('SELECT id, is_visible, title, created_by FROM tests WHERE id = $1', [testId]);
-        if (testCheckResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Test not found' });
-        }
-        const currentTest = testCheckResult.rows[0];
-        // Admin kontrolü (isteğe bağlı - kaldırılabilir)
-        // if (currentTest.created_by !== userId && req.user?.role !== 'admin') {
-        //     return res.status(403).json({ message: 'Forbidden: You can only toggle your own tests' });
-        // }
-        // Görünürlük durumunu toggle et
-        const newVisibilityState = !currentTest.is_visible;
-        const result = await database_1.default.query('UPDATE tests SET is_visible = $1 WHERE id = $2 RETURNING id, title, is_visible', [newVisibilityState, testId]);
-        if (result.rows.length === 0) {
-            return res.status(500).json({ message: 'Failed to update test visibility' });
-        }
-        const updatedTest = result.rows[0];
-        // Gerçek zamanlı bildirim gönder (tüm kullanıcılara)
-        try {
-            await kafkaService_1.default.sendNotification({
-                userId: 0, // 0 = broadcast to all users
-                type: 'system',
-                title: updatedTest.is_visible ? 'Test Aktif Edildi' : 'Test Gizlendi',
-                body: `"${updatedTest.title}" test'i ${updatedTest.is_visible ? 'aktif edildi ve artık alınabilir' : 'gizlendi ve artık alınamaz'}.`,
-                data: {
-                    testId: updatedTest.id,
-                    testTitle: updatedTest.title,
-                    action: updatedTest.is_visible ? 'show' : 'hide',
-                    timestamp: Date.now()
-                },
-                timestamp: Date.now()
-            });
-        }
-        catch (kafkaError) {
-            console.error('Kafka notification sending failed:', kafkaError);
-            // Don't fail the main request if notification fails
-        }
-        // Başarı mesajı
-        const statusMessage = updatedTest.is_visible ? 'Test successfully made visible' : 'Test successfully hidden';
-        res.status(200).json({
-            message: statusMessage,
-            test: updatedTest,
-            newStatus: updatedTest.is_visible ? 'visible' : 'hidden'
-        });
-    }
-    catch (error) {
-        console.error('Error toggling test visibility:', error);
-        res.status(500).json({ message: 'Error toggling test visibility' });
-    }
-};
-exports.toggleTestVisibility = toggleTestVisibility;

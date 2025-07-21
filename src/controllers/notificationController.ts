@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
+import pool from '../config/database';
 import { 
   getUserNotifications, 
   markNotificationAsRead, 
@@ -113,6 +114,48 @@ export const deleteNotificationById = async (req: AuthenticatedRequest, res: Res
   } catch (error) {
     console.error('Delete notification error:', error);
     res.status(500).json({ message: 'Error deleting notification' });
+  }
+};
+
+// Bekleyen (okunmamış) bildirimleri getir
+export const getPendingNotifications = async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const offset = (page - 1) * limit;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    // Sadece okunmamış bildirimleri getir
+    const result = await pool.query(`
+      SELECT * FROM notifications
+      WHERE user_id = $1 AND is_read = false
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
+
+    // Toplam okunmamış sayısı
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total FROM notifications 
+      WHERE user_id = $1 AND is_read = false
+    `, [userId]);
+
+    res.status(200).json({
+      notifications: result.rows,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(parseInt(countResult.rows[0].total) / limit),
+        total_count: parseInt(countResult.rows[0].total),
+        limit
+      }
+    });
+
+  } catch (error) {
+    console.error('Get pending notifications error:', error);
+    res.status(500).json({ message: 'Error getting pending notifications' });
   }
 };
 

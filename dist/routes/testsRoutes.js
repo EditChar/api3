@@ -12,5 +12,5 @@ router.get('/:testId', testsController_1.getTestById); // Belirli bir test setin
 router.post('/', authMiddleware_1.authMiddleware, adminMiddleware_1.adminMiddleware, testsController_1.createTest);
 router.put('/:testId', authMiddleware_1.authMiddleware, adminMiddleware_1.adminMiddleware, testsController_1.updateTest);
 router.delete('/:testId', authMiddleware_1.authMiddleware, adminMiddleware_1.adminMiddleware, testsController_1.deleteTest);
-router.patch('/:testId/toggle-visibility', authMiddleware_1.authMiddleware, adminMiddleware_1.adminMiddleware, testsController_1.toggleTestVisibility);
+router.patch('/:testId/visibility', authMiddleware_1.authMiddleware, adminMiddleware_1.adminMiddleware, testsController_1.toggleTestVisibility);
 exports.default = router;

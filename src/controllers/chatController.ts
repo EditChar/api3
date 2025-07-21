@@ -9,6 +9,8 @@ import SocketManager from '../config/socket';
 import { createNotification } from '../services/notificationService';
 import kafkaService, { ChatMessage, UserEvent, NotificationEvent } from '../services/kafkaService';
 import BadgeService from '../services/badgeService';
+import { firebaseNotificationService } from '../services/firebaseNotificationService';
+import { enterpriseNotificationService } from '../services/enterpriseNotificationService';
 
 export const getChatRooms = async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
@@ -598,10 +600,13 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
       
       if (senderResult.rows.length > 0) {
         const sender = senderResult.rows[0];
+        const senderName = `${sender.first_name} ${sender.last_name}`;
+        
+        // Kafka notification
         const notification: NotificationEvent = {
           userId: receiverId,
           type: 'message',
-          title: `${sender.first_name} ${sender.last_name}`,
+          title: senderName,
           body: messageType === 'text' ? message : '📷 Resim gönderdi',
           data: {
             roomId: roomId,
@@ -613,6 +618,42 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
         };
         
         await kafkaService.sendNotification(notification);
+
+        // 🏢 ENTERPRISE: Multi-device push notification
+        try {
+          const messageBodyForNotification = messageType === 'text' 
+            ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+            : '📷 Resim gönderdi';
+            
+          await enterpriseNotificationService.sendMessageNotificationEnterprise(
+            receiverId,
+            senderId,
+            senderName,
+            messageBodyForNotification,
+            roomId
+          );
+          console.log(`🏢 Enterprise notification sent for message ${messageId}`);
+        } catch (enterpriseError) {
+          console.warn('Enterprise notification failed:', enterpriseError);
+          
+          // Fallback to legacy Firebase
+          try {
+            const messageBodyForFallback = messageType === 'text' 
+              ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+              : '📷 Resim gönderdi';
+              
+            await firebaseNotificationService.sendMessageNotification(
+              receiverId,
+              senderId,
+              senderName,
+              messageBodyForFallback,
+              roomId
+            );
+            console.log(`🔥 Fallback Firebase notification sent for message ${messageId}`);
+          } catch (firebaseError) {
+            console.warn('Both enterprise and Firebase notifications failed:', firebaseError);
+          }
+        }
       }
     } catch (notificationError) {
       console.warn('Fallback: Failed to send notification:', notificationError);

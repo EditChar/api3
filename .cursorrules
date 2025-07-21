@@ -1,0 +1,346 @@
+# 🌍 ENTERPRISE GLOBAL MESSAGING APPLICATION - CURSOR RULES
+# For applications serving 100+ million concurrent users worldwide
+
+## 🏢 ENTERPRISE DEVELOPMENT STANDARDS
+
+### SYSTEM ARCHITECTURE PRINCIPLES
+- Always design for horizontal scalability (min 1M concurrent users per instance)
+- Implement microservices architecture patterns with proper separation of concerns
+- Use event-driven architecture for real-time messaging and notifications
+- Apply CQRS (Command Query Responsibility Segregation) for high-performance reads/writes
+- Implement circuit breaker patterns for external service dependencies
+- Design with multi-region deployment and data replication in mind
+
+### PERFORMANCE REQUIREMENTS
+- API response times must be < 100ms for 95th percentile
+- Database queries must be optimized with proper indexing (< 50ms query time)
+- Implement Redis caching with TTL strategies for frequently accessed data
+- Use connection pooling for database connections (min 100 connections per pool)
+- Implement pagination for all list endpoints (max 50 items per page)
+- Use batch processing for bulk operations (min 1000 items per batch)
+- Implement rate limiting (1000 requests per minute per user)
+
+### SCALABILITY PATTERNS
+- Always implement database sharding strategies for user data
+- Use message queues (Kafka/RabbitMQ) for asynchronous processing
+- Implement load balancing with health checks
+- Use CDN for static assets and file uploads
+- Implement auto-scaling based on CPU/memory metrics
+- Design stateless services for easy horizontal scaling
+
+### SECURITY REQUIREMENTS
+- Implement enterprise-grade authentication (JWT with refresh tokens)
+- Use HTTPS everywhere with TLS 1.3 minimum
+- Implement rate limiting and DDoS protection
+- Use encrypted database connections
+- Implement proper input validation and sanitization
+- Use parameterized queries to prevent SQL injection
+- Implement audit logging for all user actions
+- Use secure headers (CSRF, XSS protection, HSTS)
+
+### DATABASE OPTIMIZATION
+- Always use transactions for multi-table operations
+- Implement proper indexing strategies for query optimization
+- Use read replicas for read-heavy operations
+- Implement connection pooling with proper timeout settings
+- Use database migrations for schema changes
+- Implement soft delete patterns for data retention
+- Use database partitioning for large tables (>10M records)
+- Implement proper backup and disaster recovery strategies
+
+### REAL-TIME MESSAGING STANDARDS
+- Use WebSocket connections with fallback to Server-Sent Events
+- Implement message delivery acknowledgments and retry mechanisms
+- Use message queuing for offline message delivery
+- Implement message encryption for end-to-end security
+- Use presence detection for online/offline status
+- Implement message history pagination and search
+- Use efficient serialization formats (MessagePack/Protobuf)
+
+### NOTIFICATION SYSTEM REQUIREMENTS
+- Support multi-device push notifications (FCM/APNS)
+- Implement user-centric notification preferences
+- Use background job processing for notification delivery
+- Implement notification retry mechanisms with exponential backoff
+- Support rich notifications with actions and media
+- Implement notification analytics and delivery tracking
+- Use A/B testing for notification optimization
+
+### CODE QUALITY STANDARDS
+- Use TypeScript strict mode with proper type definitions
+- Implement comprehensive error handling with structured logging
+- Write unit tests for all business logic (90%+ coverage)
+- Use integration tests for API endpoints
+- Implement proper documentation with JSDoc
+- Use consistent naming conventions (camelCase for variables, PascalCase for classes)
+- Implement code reviews for all changes
+- Use ESLint and Prettier for code formatting
+
+### MONITORING AND OBSERVABILITY
+- Implement structured logging with correlation IDs
+- Use distributed tracing for request tracking
+- Implement health check endpoints for all services
+- Use metrics collection (Prometheus/Grafana)
+- Implement alerting for system anomalies
+- Use APM tools for performance monitoring
+- Implement user behavior analytics
+
+### DEPLOYMENT AND DEVOPS
+- Use containerization (Docker) for all services
+- Implement CI/CD pipelines with automated testing
+- Use infrastructure as code (Terraform/CloudFormation)
+- Implement blue-green deployments for zero downtime
+- Use feature flags for gradual feature rollouts
+- Implement automated rollback mechanisms
+- Use secrets management for sensitive configuration
+
+## 💻 CODE GENERATION RULES
+
+### API DEVELOPMENT
+```typescript
+// Always implement this pattern for API endpoints
+app.post('/api/endpoint', [
+  authMiddleware,           // Authentication required
+  rateLimitMiddleware,      // Rate limiting
+  validationMiddleware,     // Input validation
+  auditMiddleware          // Audit logging
+], async (req: AuthenticatedRequest, res: Response) => {
+  const correlationId = req.correlationId;
+  const startTime = Date.now();
+  
+  try {
+    // Business logic with proper error handling
+    const result = await businessLogic(req.body);
+    
+    // Log success metrics
+    logger.info('Operation successful', {
+      correlationId,
+      duration: Date.now() - startTime,
+      userId: req.user.id
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: { correlationId }
+    });
+    
+  } catch (error) {
+    // Structured error handling
+    logger.error('Operation failed', {
+      correlationId,
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      correlationId
+    });
+  }
+});
+```
+
+### DATABASE OPERATIONS
+```typescript
+// Always use this pattern for database operations
+async function createUserWithTransaction(userData: CreateUserData): Promise<User> {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Main operation
+    const user = await client.query(`
+      INSERT INTO users (username, email, created_at)
+      VALUES ($1, $2, NOW())
+      RETURNING *
+    `, [userData.username, userData.email]);
+    
+    // Related operations
+    await client.query(`
+      INSERT INTO user_preferences (user_id, created_at)
+      VALUES ($1, NOW())
+    `, [user.rows[0].id]);
+    
+    await client.query('COMMIT');
+    return user.rows[0];
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Database transaction failed', { error: error.message });
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+```
+
+### REDIS CACHING
+```typescript
+// Always implement caching with this pattern
+class CacheService {
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const cached = await redisClient.get(key);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      logger.warn('Cache get failed', { key, error: error.message });
+      return null; // Graceful degradation
+    }
+  }
+  
+  async set(key: string, value: any, ttl: number = 3600): Promise<void> {
+    try {
+      await redisClient.setex(key, ttl, JSON.stringify(value));
+    } catch (error) {
+      logger.warn('Cache set failed', { key, error: error.message });
+      // Don't throw - caching failures shouldn't break functionality
+    }
+  }
+}
+```
+
+### REAL-TIME MESSAGING
+```typescript
+// Always implement WebSocket handling with this pattern
+io.on('connection', (socket: Socket) => {
+  const userId = socket.handshake.auth.userId;
+  const correlationId = generateCorrelationId();
+  
+  logger.info('User connected', { userId, socketId: socket.id, correlationId });
+  
+  // Join user-specific room
+  socket.join(`user:${userId}`);
+  
+  // Handle message sending
+  socket.on('send_message', async (data: MessageData) => {
+    try {
+      // Validate and process message
+      const message = await messageService.createMessage({
+        senderId: userId,
+        receiverId: data.receiverId,
+        content: data.content,
+        type: data.type
+      });
+      
+      // Emit to receiver
+      io.to(`user:${data.receiverId}`).emit('new_message', message);
+      
+      // Send push notification if user offline
+      await notificationService.sendPushNotification(data.receiverId, message);
+      
+    } catch (error) {
+      logger.error('Message send failed', {
+        userId,
+        error: error.message,
+        correlationId
+      });
+      
+      socket.emit('error', {
+        type: 'MESSAGE_SEND_FAILED',
+        message: 'Failed to send message',
+        correlationId
+      });
+    }
+  });
+  
+  socket.on('disconnect', () => {
+    logger.info('User disconnected', { userId, socketId: socket.id });
+  });
+});
+```
+
+## 🚀 ENTERPRISE PATTERNS TO ALWAYS USE
+
+### Error Handling
+- Always implement structured error responses
+- Use correlation IDs for request tracking
+- Implement graceful degradation for external service failures
+- Log all errors with context and user information
+
+### Security
+- Always validate and sanitize user inputs
+- Implement proper authentication middleware
+- Use rate limiting on all public endpoints
+- Encrypt sensitive data at rest and in transit
+
+### Performance
+- Always implement caching strategies
+- Use database indexes for all query conditions
+- Implement connection pooling
+- Use async/await for non-blocking operations
+
+### Monitoring
+- Always log important business events
+- Implement health check endpoints
+- Use structured logging with correlation IDs
+- Monitor response times and error rates
+
+## 🔥 NEVER DO THESE
+
+### Security Anti-patterns
+- Never store passwords in plain text
+- Never trust user input without validation
+- Never expose internal error details to clients
+- Never use string concatenation for SQL queries
+
+### Performance Anti-patterns
+- Never use blocking synchronous operations
+- Never fetch all records without pagination
+- Never ignore database indexes
+- Never use infinite loops or unbounded recursion
+
+### Architecture Anti-patterns
+- Never hardcode configuration values
+- Never create circular dependencies
+- Never ignore error handling
+- Never skip logging for important operations
+
+## 📊 METRICS TO TRACK
+
+### Performance Metrics
+- API response times (p50, p95, p99)
+- Database query performance
+- Cache hit rates
+- Memory and CPU usage
+
+### Business Metrics
+- Daily/Monthly active users
+- Message delivery rates
+- Notification open rates
+- Feature adoption rates
+
+### System Metrics
+- Error rates and types
+- Service availability
+- Deployment frequency
+- Mean time to recovery (MTTR)
+
+## 🌍 GLOBAL DEPLOYMENT CONSIDERATIONS
+
+### Multi-region Support
+- Implement data replication across regions
+- Use geo-distributed CDNs
+- Implement region-based routing
+- Consider data sovereignty requirements
+
+### Localization
+- Support multiple languages and timezones
+- Implement currency and number formatting
+- Consider cultural differences in UX
+- Support right-to-left languages
+
+### Compliance
+- Implement GDPR compliance for EU users
+- Support data export and deletion requests
+- Implement audit trails for compliance
+- Consider regional data protection laws
+
+---
+
+# 🎯 GOAL: Build a world-class messaging platform that scales to hundreds of millions of users with enterprise-grade reliability, security, and performance.
+
+Remember: Every line of code should be written with global scale in mind. Think Netflix, WhatsApp, or Slack level of reliability and performance. 

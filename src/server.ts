@@ -16,6 +16,8 @@ import messageRequestRoutes from './routes/messageRequestRoutes'; // Mesaj istek
 import chatRoutes from './routes/chatRoutes'; // Chat sistemi için route
 import notificationRoutes from './routes/notificationRoutes'; // Bildirimler için route
 import badgeRoutes from './routes/badgeRoutes'; // Badge sistemi için route
+import deviceRoutes from './routes/deviceRoutes';
+import enterpriseRoutes from './routes/enterpriseRoutes'; // FCM Token yönetimi için route
 import kafkaService from './services/kafkaService';
 // Import workers to run in same process
 import persistenceWorker from './workers/persistence.worker';
@@ -52,6 +54,10 @@ app.use('/api/message-requests', messageRequestRoutes); // /api/message-requests
 app.use('/api/chat', chatRoutes); // /api/chat ile başlayanlar chatRoutes'a gider
 app.use('/api/notifications', notificationRoutes); // /api/notifications ile başlayanlar notificationRoutes'a gider
 app.use('/api/badges', badgeRoutes); // /api/badges ile başlayanlar badgeRoutes'a gider
+// FCM Device Management Routes (Both singular and plural for compatibility)
+app.use('/api/device', deviceRoutes);   // Frontend compatibility - singular
+app.use('/api/devices', deviceRoutes);  // Alternative plural form
+app.use('/api/enterprise', enterpriseRoutes);
 
 // Bir test setine ait soruları yönetmek için nested route
 // testsRoutes içinden /:testId/questions gibi bir yapıya yönlendirme yapılabilir

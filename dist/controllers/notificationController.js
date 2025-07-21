@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUnreadCount = exports.deleteNotificationById = exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
+exports.getUnreadCount = exports.getPendingNotifications = exports.deleteNotificationById = exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
+const database_1 = __importDefault(require("../config/database"));
 const notificationService_1 = require("../services/notificationService");
 const getNotifications = async (req, res) => {
     const userId = req.user?.id;
@@ -95,6 +99,44 @@ const deleteNotificationById = async (req, res) => {
     }
 };
 exports.deleteNotificationById = deleteNotificationById;
+// Bekleyen (okunmamış) bildirimleri getir
+const getPendingNotifications = async (req, res) => {
+    const userId = req.user?.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+    try {
+        // Sadece okunmamış bildirimleri getir
+        const result = await database_1.default.query(`
+      SELECT * FROM notifications
+      WHERE user_id = $1 AND is_read = false
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
+        // Toplam okunmamış sayısı
+        const countResult = await database_1.default.query(`
+      SELECT COUNT(*) as total FROM notifications 
+      WHERE user_id = $1 AND is_read = false
+    `, [userId]);
+        res.status(200).json({
+            notifications: result.rows,
+            pagination: {
+                current_page: page,
+                total_pages: Math.ceil(parseInt(countResult.rows[0].total) / limit),
+                total_count: parseInt(countResult.rows[0].total),
+                limit
+            }
+        });
+    }
+    catch (error) {
+        console.error('Get pending notifications error:', error);
+        res.status(500).json({ message: 'Error getting pending notifications' });
+    }
+};
+exports.getPendingNotifications = getPendingNotifications;
 const getUnreadCount = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) {

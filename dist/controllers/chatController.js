@@ -10,6 +10,8 @@ const uuid_1 = require("uuid");
 const socket_1 = __importDefault(require("../config/socket"));
 const kafkaService_1 = __importDefault(require("../services/kafkaService"));
 const badgeService_1 = __importDefault(require("../services/badgeService"));
+const firebaseNotificationService_1 = require("../services/firebaseNotificationService");
+const enterpriseNotificationService_1 = require("../services/enterpriseNotificationService");
 const getChatRooms = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) {
@@ -532,10 +534,12 @@ const sendMessage = async (req, res) => {
             const senderResult = await database_1.default.query('SELECT first_name, last_name FROM users WHERE id = $1', [senderId]);
             if (senderResult.rows.length > 0) {
                 const sender = senderResult.rows[0];
+                const senderName = `${sender.first_name} ${sender.last_name}`;
+                // Kafka notification
                 const notification = {
                     userId: receiverId,
                     type: 'message',
-                    title: `${sender.first_name} ${sender.last_name}`,
+                    title: senderName,
                     body: messageType === 'text' ? message : '📷 Resim gönderdi',
                     data: {
                         roomId: roomId,
@@ -546,6 +550,28 @@ const sendMessage = async (req, res) => {
                     timestamp: Date.now()
                 };
                 await kafkaService_1.default.sendNotification(notification);
+                // 🏢 ENTERPRISE: Multi-device push notification
+                try {
+                    const messageBodyForNotification = messageType === 'text'
+                        ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+                        : '📷 Resim gönderdi';
+                    await enterpriseNotificationService_1.enterpriseNotificationService.sendMessageNotificationEnterprise(receiverId, senderId, senderName, messageBodyForNotification, roomId);
+                    console.log(`🏢 Enterprise notification sent for message ${messageId}`);
+                }
+                catch (enterpriseError) {
+                    console.warn('Enterprise notification failed:', enterpriseError);
+                    // Fallback to legacy Firebase
+                    try {
+                        const messageBodyForFallback = messageType === 'text'
+                            ? (message.length > 100 ? message.substring(0, 100) + '...' : message)
+                            : '📷 Resim gönderdi';
+                        await firebaseNotificationService_1.firebaseNotificationService.sendMessageNotification(receiverId, senderId, senderName, messageBodyForFallback, roomId);
+                        console.log(`🔥 Fallback Firebase notification sent for message ${messageId}`);
+                    }
+                    catch (firebaseError) {
+                        console.warn('Both enterprise and Firebase notifications failed:', firebaseError);
+                    }
+                }
             }
         }
         catch (notificationError) {

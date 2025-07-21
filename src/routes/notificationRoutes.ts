@@ -5,7 +5,8 @@ import {
   markAsRead,
   markAllAsRead,
   deleteNotificationById,
-  getUnreadCount
+  getUnreadCount,
+  getPendingNotifications
 } from '../controllers/notificationController';
 
 const router = express.Router();
@@ -15,6 +16,9 @@ router.use(authMiddleware);
 
 // Kullanıcının bildirimlerini getir
 router.get('/', getNotifications);
+
+// Bekleyen (okunmamış) bildirimleri getir
+router.get('/pending', getPendingNotifications);
 
 // Okunmamış bildirim sayısını getir
 router.get('/unread-count', getUnreadCount);

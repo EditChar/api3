@@ -4,6 +4,8 @@ import pool from '../config/database';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { MessageRequest, MessageRequestWithUser } from '../models/MessageRequest';
 import { createNotificationSafe } from '../services/notificationService';
+import { firebaseNotificationService } from '../services/firebaseNotificationService';
+import { enterpriseNotificationService } from '../services/enterpriseNotificationService';
 
 export const sendMessageRequest = async (req: AuthenticatedRequest, res: Response) => {
   const senderId = req.user?.id;
@@ -120,6 +122,30 @@ export const sendMessageRequest = async (req: AuthenticatedRequest, res: Respons
         sender_name: `${sender.first_name} ${sender.last_name}`
       }
     });
+
+    // 🏢 ENTERPRISE: Multi-device push notification gönder
+    try {
+      await enterpriseNotificationService.sendMessageRequestNotificationEnterprise(
+        receiver_id,
+        `${sender.first_name} ${sender.last_name}`,
+        messageRequest.id
+      );
+      console.log(`🏢 Enterprise message request notification sent to user ${receiver_id}`);
+    } catch (enterpriseError) {
+      console.warn('Enterprise message request notification failed:', enterpriseError);
+      
+      // Fallback to legacy Firebase
+      try {
+        await firebaseNotificationService.sendMessageRequestNotification(
+          receiver_id,
+          `${sender.first_name} ${sender.last_name}`,
+          messageRequest.id
+        );
+        console.log(`🔥 Fallback Firebase message request notification sent to user ${receiver_id}`);
+      } catch (firebaseError) {
+        console.warn('Both enterprise and Firebase message request notifications failed:', firebaseError);
+      }
+    }
 
     // Güvenli bir yanıt objesi oluştur
     const safeRequest = {
@@ -395,6 +421,30 @@ export const acceptMessageRequest = async (req: AuthenticatedRequest, res: Respo
           other_user_name: `${receiver.first_name} ${receiver.last_name}`
         }
       });
+
+      // 🏢 ENTERPRISE: Multi-device push notification gönder
+      try {
+        await enterpriseNotificationService.sendRequestAcceptedNotificationEnterprise(
+          messageRequest.sender_id, // Mesaj isteğini gönderen kişi
+          `${receiver.first_name} ${receiver.last_name}`, // Kabul eden kişinin adı
+          chatRoom.id
+        );
+        console.log(`🏢 Enterprise request accepted notification sent to user ${messageRequest.sender_id}`);
+      } catch (enterpriseError) {
+        console.warn('Enterprise request accepted notification failed:', enterpriseError);
+        
+        // Fallback to legacy Firebase
+        try {
+          await firebaseNotificationService.sendRequestAcceptedNotification(
+            messageRequest.sender_id,
+            `${receiver.first_name} ${receiver.last_name}`,
+            chatRoom.id
+          );
+          console.log(`🔥 Fallback Firebase request accepted notification sent to user ${messageRequest.sender_id}`);
+        } catch (firebaseError) {
+          console.warn('Both enterprise and Firebase request accepted notifications failed:', firebaseError);
+        }
+      }
 
       const safeChatRoom = {
         id: chatRoom.id,

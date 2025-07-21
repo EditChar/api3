@@ -21,6 +21,8 @@ const messageRequestRoutes_1 = __importDefault(require("./routes/messageRequestR
 const chatRoutes_1 = __importDefault(require("./routes/chatRoutes")); // Chat sistemi için route
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes")); // Bildirimler için route
 const badgeRoutes_1 = __importDefault(require("./routes/badgeRoutes")); // Badge sistemi için route
+const deviceRoutes_1 = __importDefault(require("./routes/deviceRoutes"));
+const enterpriseRoutes_1 = __importDefault(require("./routes/enterpriseRoutes")); // FCM Token yönetimi için route
 const kafkaService_1 = __importDefault(require("./services/kafkaService"));
 // Import workers to run in same process
 const persistence_worker_1 = __importDefault(require("./workers/persistence.worker"));
@@ -49,6 +51,8 @@ app.use('/api/message-requests', messageRequestRoutes_1.default); // /api/messag
 app.use('/api/chat', chatRoutes_1.default); // /api/chat ile başlayanlar chatRoutes'a gider
 app.use('/api/notifications', notificationRoutes_1.default); // /api/notifications ile başlayanlar notificationRoutes'a gider
 app.use('/api/badges', badgeRoutes_1.default); // /api/badges ile başlayanlar badgeRoutes'a gider
+app.use('/api/devices', deviceRoutes_1.default);
+app.use('/api/enterprise', enterpriseRoutes_1.default); // /api/devices ile başlayanlar deviceRoutes'a gider
 // Bir test setine ait soruları yönetmek için nested route
 // testsRoutes içinden /:testId/questions gibi bir yapıya yönlendirme yapılabilir
 // VEYA doğrudan burada tanımlanabilir. Şimdilik testsRoutes içinde :testId altına questionsRoutes'u ekleyelim.

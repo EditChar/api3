@@ -11,6 +11,8 @@ const router = express_1.default.Router();
 router.use(authMiddleware_1.authMiddleware);
 // Kullanıcının bildirimlerini getir
 router.get('/', notificationController_1.getNotifications);
+// Bekleyen (okunmamış) bildirimleri getir
+router.get('/pending', notificationController_1.getPendingNotifications);
 // Okunmamış bildirim sayısını getir
 router.get('/unread-count', notificationController_1.getUnreadCount);
 // Bildirimi okundu olarak işaretle
