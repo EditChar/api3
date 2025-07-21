@@ -35,6 +35,13 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# Firebase & Environment Variables
+firebase-service-account.json
+.env
+.env.local
+.env.production
+.env.development
+
 # node.js
 #
 node_modules/
