@@ -335,10 +335,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         let html = '<ul>';
-        questions.forEach(question => {
+        questions.forEach((question, index) => {
             html += `
                 <li data-questionid="${question.id}">
-                    <strong>Soru ${question.id}:</strong> ${escapeHTML(question.question_text)}
+                    <strong>Soru ${index + 1}:</strong> ${escapeHTML(question.question_text)}
                     <ul>
                         ${question.answers && question.answers.map(ans => 
                             `<li>${escapeHTML(ans.answer_text)} (Puan: ${ans.score})</li>`

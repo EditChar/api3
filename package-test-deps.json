@@ -1,0 +1,45 @@
+{
+  "name": "firebase-notification-test-environment",
+  "version": "1.0.0",
+  "description": "Enterprise-grade Firebase notification testing environment for millions of concurrent users",
+  "main": "firebase-notification-test-environment.js",
+  "scripts": {
+    "test:basic": "node firebase-notification-test-environment.js",
+    "test:load": "node firebase-load-test-millions.js",
+    "test:monitor": "node firebase-notification-monitor.js",
+    "test:all": "npm run test:basic && npm run test:load",
+    "install:deps": "npm install axios ws uuid",
+    "start": "node firebase-notification-test-environment.js"
+  },
+  "keywords": [
+    "firebase", 
+    "fcm", 
+    "notifications", 
+    "load-testing", 
+    "enterprise", 
+    "multi-device", 
+    "real-time", 
+    "monitoring"
+  ],
+  "author": "Enterprise Development Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "ws": "^8.14.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/firebase-notification-tests"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/firebase-notification-tests/issues"
+  },
+  "homepage": "https://github.com/your-org/firebase-notification-tests#readme"
+} 

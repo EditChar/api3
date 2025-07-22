@@ -1,0 +1,43 @@
+{
+  "testConfig": {
+    "BASE_URL": "http://localhost:3001",
+    "WS_URL": "ws://localhost:3001",
+    "USERS_TO_SIMULATE": 50,
+    "DEVICES_PER_USER": 3,
+    "CONCURRENT_TESTS": 10,
+    "LOAD_TEST_DURATION": 300000,
+    "NOTIFICATION_INTERVAL": 1000,
+    "LOG_LEVEL": "info"
+  },
+  "startTime": "2025-07-22T18:16:21.190Z",
+  "endTime": "2025-07-22T18:21:33.891Z",
+  "duration": 312701,
+  "results": {
+    "notifications": {
+      "sent": 0,
+      "delivered": 0,
+      "failed": 0,
+      "foreground": 0,
+      "background": 0
+    },
+    "messages": {
+      "sent": 0,
+      "delivered": 0,
+      "failed": 0
+    },
+    "messageRequests": {
+      "sent": 0,
+      "accepted": 0,
+      "rejected": 0
+    },
+    "performance": {
+      "avgResponseTime": 0,
+      "maxResponseTime": 0,
+      "minResponseTime": null
+    },
+    "errors": []
+  },
+  "users": [],
+  "devices": [],
+  "sockets": []
+}
