@@ -1,0 +1,83 @@
+{
+  "Rules": [
+    {
+      "ID": "EnterpriseAvatarLifecycle",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "avatars/"
+      },
+      "Transitions": [
+        {
+          "Days": 7,
+          "StorageClass": "STANDARD_IA",
+          "Comment": "Move to IA after 7 days - users rarely change avatars frequently"
+        },
+        {
+          "Days": 180,
+          "StorageClass": "GLACIER_IR", 
+          "Comment": "Instant Retrieval Glacier for 6+ month old avatars - still instant access"
+        },
+        {
+          "Days": 730,
+          "StorageClass": "GLACIER",
+          "Comment": "2+ year old avatars to standard Glacier - backup purposes"
+        }
+      ],
+      "NoncurrentVersionTransitions": [
+        {
+          "NoncurrentDays": 1,
+          "StorageClass": "STANDARD_IA",
+          "Comment": "Old avatar versions immediately to IA"
+        },
+        {
+          "NoncurrentDays": 30,
+          "StorageClass": "GLACIER_IR"
+        }
+      ],
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    },
+    {
+      "ID": "ThumbnailOptimization",
+      "Status": "Enabled", 
+      "Filter": {
+        "And": {
+          "Prefix": "avatars/",
+          "Tags": [
+            {
+              "Key": "Size",
+              "Value": "thumbnail"
+            }
+          ]
+        }
+      },
+      "Transitions": [
+        {
+          "Days": 3,
+          "StorageClass": "STANDARD_IA",
+          "Comment": "Thumbnails to IA very quickly - generated on demand"
+        }
+      ]
+    },
+    {
+      "ID": "DeletedAvatarCleanup",
+      "Status": "Enabled",
+      "Filter": {
+        "And": {
+          "Prefix": "avatars/",
+          "Tags": [
+            {
+              "Key": "Status", 
+              "Value": "deleted"
+            }
+          ]
+        }
+      },
+      "Expiration": {
+        "Days": 90,
+        "Comment": "Permanently delete marked avatars after 90 days"
+      }
+    }
+  ]
+} 

@@ -1,0 +1,62 @@
+{
+  "Rules": [
+    {
+      "ID": "EnterpriseAvatarLifecycleFixed",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "avatars/"
+      },
+      "Transitions": [
+        {
+          "Days": 30,
+          "StorageClass": "STANDARD_IA",
+          "Comment": "Move to IA after 30 days (AWS minimum) - still instant access"
+        },
+        {
+          "Days": 90,
+          "StorageClass": "GLACIER_IR", 
+          "Comment": "Instant Retrieval Glacier after 90 days - still instant access"
+        },
+        {
+          "Days": 365,
+          "StorageClass": "GLACIER",
+          "Comment": "1+ year old avatars to standard Glacier - backup purposes"
+        }
+      ],
+      "NoncurrentVersionTransitions": [
+        {
+          "NoncurrentDays": 30,
+          "StorageClass": "STANDARD_IA",
+          "Comment": "Old avatar versions to IA after 30 days (AWS minimum)"
+        },
+        {
+          "NoncurrentDays": 60,
+          "StorageClass": "GLACIER_IR",
+          "Comment": "Old versions to Glacier-IR after 60 days (must be > 30)"
+        }
+      ],
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    },
+    {
+      "ID": "DeletedAvatarCleanup",
+      "Status": "Enabled",
+      "Filter": {
+        "And": {
+          "Prefix": "avatars/",
+          "Tags": [
+            {
+              "Key": "Status", 
+              "Value": "deleted"
+            }
+          ]
+        }
+      },
+      "Expiration": {
+        "Days": 90,
+        "Comment": "Permanently delete marked avatars after 90 days"
+      }
+    }
+  ]
+} 

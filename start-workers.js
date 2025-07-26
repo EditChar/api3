@@ -22,6 +22,11 @@ class WorkerManager {
         name: 'Notification Worker',
         script: 'src/workers/notification.worker.ts', 
         restartDelay: 5000
+      },
+      {
+        name: 'Avatar Cleanup Worker',
+        script: 'src/workers/avatar-cleanup.worker.ts',
+        restartDelay: 10000 // Longer delay for cleanup worker
       }
     ];
   }

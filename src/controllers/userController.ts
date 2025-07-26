@@ -4,6 +4,10 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { User } from '../models/User';
 import path from 'path';
 import fs from 'fs';
+import { AvatarService } from '../services/avatarService';
+
+// Initialize avatar service
+const avatarService = new AvatarService();
 
 // Yeni yardımcı fonksiyon: avatar dosya yolunu güvenli şekilde oluştur
 const buildAvatarFilePath = (avatarUrl: string | null) => {
@@ -76,36 +80,81 @@ export const updateUserProfile = async (req: AuthenticatedRequest, res: Response
 
 export const updateUserAvatar = async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
+  const correlationId = `avatar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`🚀 [${correlationId}] Avatar upload request from user ${userId}`);
 
   if (!req.file) {
-    return res.status(400).json({ message: 'Lütfen bir dosya seçin.' });
+    console.log(`❌ [${correlationId}] No file provided`);
+    return res.status(400).json({ 
+      success: false,
+      message: 'Lütfen bir dosya seçin.',
+      correlationId 
+    });
+  }
+
+  if (!userId) {
+    console.log(`❌ [${correlationId}] User not authenticated`);
+    return res.status(401).json({ 
+      success: false,
+      message: 'Authentication required.',
+      correlationId 
+    });
   }
 
   try {
-    const userResult = await pool.query('SELECT avatar_url FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length > 0 && userResult.rows[0].avatar_url) {
-        const oldAvatarPath = buildAvatarFilePath(userResult.rows[0].avatar_url);
-        if (oldAvatarPath && fs.existsSync(oldAvatarPath)) {
-            fs.unlinkSync(oldAvatarPath);
-        }
-    }
+    console.log(`📋 [${correlationId}] File info: ${req.file.originalname}, ${req.file.size} bytes, ${req.file.mimetype}`);
     
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
-
-    const result = await pool.query(
-      'UPDATE users SET avatar_url = $1, last_active_at = NOW() WHERE id = $2 RETURNING avatar_url',
-      [avatarUrl, userId]
+    // Upload via new avatar service with enterprise features
+    const result = await avatarService.uploadAvatar(
+      userId,
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    if (!result.success) {
+      console.log(`❌ [${correlationId}] Upload failed: ${result.error}`);
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Avatar upload failed',
+        correlationId
+      });
     }
 
-    res.status(200).json({ message: 'Profil fotoğrafı başarıyla güncellendi.', avatar_url: result.rows[0].avatar_url });
+    console.log(`✅ [${correlationId}] Avatar uploaded successfully: ${result.avatarId}`);
+    
+    // Backward compatibility response format
+    const response = {
+      success: true,
+      message: result.isDuplicate 
+        ? 'Profil fotoğrafı güncellendi (mevcut dosya kullanıldı)' 
+        : 'Profil fotoğrafı başarıyla güncellendi.',
+      avatar_url: result.urls?.medium, // Default medium size for backward compatibility
+      avatarId: result.avatarId,
+      urls: result.urls, // All sizes available
+      isDuplicate: result.isDuplicate || false,
+      correlationId,
+      meta: {
+        uploadTime: Date.now(),
+        fileSize: req.file.size,
+        optimized: true
+      }
+    };
 
-  } catch (error) {
-    console.error('Update avatar error:', error);
-    res.status(500).json({ message: 'Profil fotoğrafı güncellenirken bir hata oluştu.' });
+    res.status(200).json(response);
+
+  } catch (error: unknown) {
+    console.error(`❌ [${correlationId}] Unexpected error:`, error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Profil fotoğrafı güncellenirken bir hata oluştu.',
+      correlationId,
+      error: process.env.NODE_ENV === 'development' 
+        ? (error instanceof Error ? error.message : 'Unknown error')
+        : undefined
+    });
   }
 };
 
@@ -352,66 +401,123 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
 };
 
 export const uploadAvatar = async (req: AuthenticatedRequest, res: Response) => {
-    try {
+    const userId = req.user?.id;
+    const correlationId = `avatar-upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`🚀 [${correlationId}] Avatar upload request from user ${userId}`);
+
         if (!req.file) {
-            return res.status(400).json({ message: 'Lütfen bir dosya seçin.' });
+        console.log(`❌ [${correlationId}] No file provided`);
+        return res.status(400).json({ 
+            success: false,
+            message: 'Lütfen bir dosya seçin.',
+            correlationId 
+        });
         }
 
-        const currentUserResult = await pool.query<User>('SELECT avatar_url FROM users WHERE id = $1', [req.user!.id]);
-        if (currentUserResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    if (!userId) {
+        console.log(`❌ [${correlationId}] User not authenticated`);
+        return res.status(401).json({ 
+            success: false,
+            message: 'Authentication required.',
+            correlationId 
+        });
         }
-        const currentUser = currentUserResult.rows[0];
+
+    try {
+        console.log(`📋 [${correlationId}] File info: ${req.file.originalname}, ${req.file.size} bytes, ${req.file.mimetype}`);
         
-        if (currentUser.avatar_url) {
-            const oldAvatarPath = buildAvatarFilePath(currentUser.avatar_url);
-            if (oldAvatarPath && fs.existsSync(oldAvatarPath)) {
-                fs.unlinkSync(oldAvatarPath);
-            }
-        }
-        
-        const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-        
-        await pool.query(
-            'UPDATE users SET avatar_url = $1 WHERE id = $2',
-            [avatarUrl, req.user!.id]
+        // Upload via new avatar service with enterprise features
+        const result = await avatarService.uploadAvatar(
+            userId,
+            req.file.buffer,
+            req.file.originalname,
+            req.file.mimetype
         );
 
+        if (!result.success) {
+            console.log(`❌ [${correlationId}] Upload failed: ${result.error}`);
+            return res.status(500).json({
+                success: false,
+                message: result.error || 'Avatar upload failed',
+                correlationId
+            });
+        }
+
+        console.log(`✅ [${correlationId}] Avatar uploaded successfully: ${result.avatarId}`);
+
         res.status(200).json({
-            message: 'Avatar başarıyla yüklendi.',
-            avatarUrl: avatarUrl
+            success: true,
+            message: result.isDuplicate 
+                ? 'Avatar yüklendi (mevcut dosya kullanıldı)' 
+                : 'Avatar başarıyla yüklendi.',
+            avatarUrl: result.urls?.medium, // Default medium size for backward compatibility
+            avatarId: result.avatarId,
+            urls: result.urls, // All sizes available
+            isDuplicate: result.isDuplicate || false,
+            correlationId,
+            meta: {
+                uploadTime: Date.now(),
+                fileSize: req.file.size,
+                optimized: true
+            }
         });
 
-    } catch (error) {
-        console.error('Avatar yükleme hatası:', error);
-        res.status(500).json({ message: 'Avatar yüklenirken bir sunucu hatası oluştu.' });
+    } catch (error: unknown) {
+        console.error(`❌ [${correlationId}] Avatar upload error:`, error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Avatar yüklenirken bir sunucu hatası oluştu.',
+            correlationId
+        });
     }
 };
 
-// Yeni endpoint: avatar silme
+// Avatar silme endpoint
 export const deleteUserAvatar = async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
+  const correlationId = `delete-avatar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`🗑️  [${correlationId}] Avatar deletion request from user ${userId}`);
+
+  if (!userId) {
+    return res.status(401).json({ 
+      success: false,
+      message: 'Authentication required.',
+      correlationId 
+    });
+    }
 
   try {
-    const userResult = await pool.query('SELECT avatar_url FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
-    }
+    const success = await avatarService.deleteUserAvatar(userId);
 
-    const currentAvatarUrl = userResult.rows[0].avatar_url;
-
-    if (currentAvatarUrl) {
-      const avatarPath = buildAvatarFilePath(currentAvatarUrl);
-      if (avatarPath && fs.existsSync(avatarPath)) {
-        fs.unlinkSync(avatarPath);
+    if (!success) {
+      console.log(`❌ [${correlationId}] Avatar deletion failed`);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete avatar',
+        correlationId
+      });
       }
-    }
 
-    await pool.query('UPDATE users SET avatar_url = NULL WHERE id = $1', [userId]);
+    console.log(`✅ [${correlationId}] Avatar deleted successfully`);
 
-    res.status(200).json({ message: 'Profil fotoğrafı silindi.' });
-  } catch (error) {
-    console.error('Delete avatar error:', error);
-    res.status(500).json({ message: 'Profil fotoğrafı silinirken bir hata oluştu.' });
+    res.status(200).json({
+      success: true,
+      message: 'Profil fotoğrafı silindi.',
+      correlationId,
+      meta: {
+        deletedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error: unknown) {
+    console.error(`❌ [${correlationId}] Error deleting avatar:`, error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Profil fotoğrafı silinirken bir hata oluştu.',
+      correlationId
+    });
   }
 }; 

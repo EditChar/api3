@@ -1,0 +1,80 @@
+{
+  "Comment": "Enterprise Avatar Cache Behaviors - Apply these via AWS Console",
+  "BehaviorsToAdd": [
+    {
+      "PathPattern": "avatars/*/thumbnail.jpg",
+      "TargetOriginId": "easy-to-image-production.s3.eu-north-1.amazonaws.com",
+      "ViewerProtocolPolicy": "redirect-to-https",
+      "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+      "OriginRequestPolicyId": "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf",
+      "Compress": true,
+      "TTLSettings": {
+        "MinTTL": 604800,
+        "DefaultTTL": 2592000,
+        "MaxTTL": 31536000
+      },
+      "Comment": "Thumbnails - 1 week min, 1 month default, 1 year max cache"
+    },
+    {
+      "PathPattern": "avatars/*/small.jpg",
+      "TargetOriginId": "easy-to-image-production.s3.eu-north-1.amazonaws.com", 
+      "ViewerProtocolPolicy": "redirect-to-https",
+      "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+      "OriginRequestPolicyId": "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf",
+      "Compress": true,
+      "TTLSettings": {
+        "MinTTL": 2592000,
+        "DefaultTTL": 31536000, 
+        "MaxTTL": 31536000
+      },
+      "Comment": "Small avatars - 1 month min, 1 year default cache"
+    },
+    {
+      "PathPattern": "avatars/*/medium.jpg",
+      "TargetOriginId": "easy-to-image-production.s3.eu-north-1.amazonaws.com",
+      "ViewerProtocolPolicy": "redirect-to-https", 
+      "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+      "OriginRequestPolicyId": "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf",
+      "Compress": true,
+      "TTLSettings": {
+        "MinTTL": 2592000,
+        "DefaultTTL": 31536000,
+        "MaxTTL": 31536000
+      },
+      "Comment": "Medium avatars - 1 month min, 1 year default cache"
+    },
+    {
+      "PathPattern": "avatars/*/large.jpg", 
+      "TargetOriginId": "easy-to-image-production.s3.eu-north-1.amazonaws.com",
+      "ViewerProtocolPolicy": "redirect-to-https",
+      "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+      "OriginRequestPolicyId": "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf", 
+      "Compress": true,
+      "TTLSettings": {
+        "MinTTL": 2592000,
+        "DefaultTTL": 31536000,
+        "MaxTTL": 31536000
+      },
+      "Comment": "Large avatars - 1 month min, 1 year default cache"
+    }
+  ],
+  "Instructions": {
+    "Step1": "Go to CloudFront Console → Your Distribution → Behaviors tab",
+    "Step2": "Click 'Create behavior' for each PathPattern above",
+    "Step3": "Copy the settings from each behavior configuration",
+    "Step4": "Save and wait for deployment (5-10 minutes)",
+    "Step5": "Test avatar URLs with different sizes"
+  },
+  "ManualSteps": [
+    "1. AWS Console → CloudFront → E3SJ7B3QL1F8WH", 
+    "2. Behaviors tab → Create behavior",
+    "3. Path pattern: avatars/*/thumbnail.jpg",
+    "4. Origin: easy-to-image-production.s3.eu-north-1.amazonaws.com",
+    "5. Viewer protocol policy: Redirect HTTP to HTTPS", 
+    "6. Cache policy: Managed-CachingOptimized",
+    "7. Origin request policy: Managed-CORS-S3Origin",
+    "8. Compress objects: Yes",
+    "9. TTL: Min=604800, Default=2592000, Max=31536000",
+    "10. Repeat for small.jpg, medium.jpg, large.jpg"
+  ]
+} 
