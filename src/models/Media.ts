@@ -44,11 +44,13 @@ export interface MediaUploadRequest {
 export interface MediaUploadResponse {
   success: boolean;
   mediaId?: string;
-  uploadUrl?: string;
+  uploadUrl?: string | null;
   fields?: { [key: string]: string }; // POST method için (backward compatibility)
-  method?: 'POST' | 'PUT'; // Upload method
+  method?: 'POST' | 'PUT' | 'DUPLICATE_REUSE'; // Upload method
   contentType?: string; // PUT method için content type
   error?: string;
+  isDuplicate?: boolean; // Duplicate detection flag
+  originalMediaId?: string; // Original media ID for duplicates
 }
 
 export interface MediaCompleteRequest {

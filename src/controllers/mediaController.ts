@@ -86,7 +86,9 @@ export const generatePresignedUpload = [
         fields: result.fields,
         method: result.method, // PUT method bilgisi
         contentType: result.contentType, // Content type bilgisi
-        error: result.error
+        error: result.error,
+        isDuplicate: result.isDuplicate,
+        originalMediaId: result.originalMediaId
       };
 
       if (result.success) {
@@ -96,6 +98,8 @@ export const generatePresignedUpload = [
           method: result.method + ' (backend)',
           contentType: result.contentType + ' (backend)',
           hasUploadUrl: !!result.uploadUrl,
+          isDuplicate: result.isDuplicate || false,
+          originalMediaId: result.originalMediaId,
           backendCompatibility: 'NEW_FORMAT',
           duration: Date.now() - startTime
         });

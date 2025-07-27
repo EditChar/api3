@@ -90,12 +90,14 @@ interface MediaUploadResult {
 
 interface PresignedUploadResult {
   success: boolean;
-  uploadUrl?: string;
+  uploadUrl?: string | null;
   mediaId?: string;
   fields?: { [key: string]: string }; // POST method için (backward compatibility)
-  method?: 'POST' | 'PUT'; // Upload method
+  method?: 'POST' | 'PUT' | 'DUPLICATE_REUSE'; // Upload method
   contentType?: string; // PUT method için
   error?: string;
+  isDuplicate?: boolean; // Duplicate detection flag
+  originalMediaId?: string; // Original media ID for duplicates
 }
 
 export class MediaService {
@@ -159,6 +161,88 @@ export class MediaService {
           success: false,
           error: `File size exceeds maximum allowed (${maxSizeMB}MB)`
         };
+      }
+
+      // 🔍 ENTERPRISE DUPLICATE DETECTION
+      // Generate content fingerprint based on file metadata
+      const contentFingerprint = crypto
+        .createHash('sha256')
+        .update(`${contentType}-${fileSize}-${userId}`)
+        .digest('hex')
+        .substring(0, 16);
+
+      console.log('🔍 [MediaService] Checking for duplicate content:', {
+        userId,
+        chatRoomId,
+        contentType,
+        fileSize,
+        fingerprint: contentFingerprint
+      });
+
+      // Check if similar content exists for this user in recent time (24h)
+      const duplicateCheck = await pool.query(`
+        SELECT 
+          media_id, 
+          s3_key, 
+          urls, 
+          created_at,
+          status
+        FROM chat_media 
+        WHERE user_id = $1 
+          AND content_type = $2 
+          AND file_size = $3
+          AND status = 'completed'
+          AND created_at > NOW() - INTERVAL '24 hours'
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `, [userId, contentType, fileSize]);
+
+      if (duplicateCheck.rows.length > 0) {
+        const existingMedia = duplicateCheck.rows[0];
+        console.log('🔄 [MediaService] Potential duplicate detected:', {
+          existingMediaId: existingMedia.media_id,
+          existingCreated: existingMedia.created_at,
+          timeDiff: Math.round((new Date().getTime() - new Date(existingMedia.created_at).getTime()) / 1000 / 60) + ' minutes ago'
+        });
+
+        // Return existing media URLs instead of creating new upload
+        const existingUrls = typeof existingMedia.urls === 'string' 
+          ? JSON.parse(existingMedia.urls) 
+          : existingMedia.urls;
+
+        if (existingUrls && Object.keys(existingUrls).length > 0) {
+          console.log('♻️ [MediaService] Reusing existing media (duplicate prevention):', {
+            originalMediaId: existingMedia.media_id,
+            reuseForChatRoom: chatRoomId,
+            savedBandwidth: `${Math.round(fileSize / 1024)}KB`,
+            savedProcessing: 'resize + encrypt operations'
+          });
+
+          // Create new database entry pointing to same S3 resources
+          const newMediaId = uuidv4();
+          await pool.query(`
+            INSERT INTO chat_media (
+              media_id, user_id, chat_room_id, s3_key, content_type, 
+              file_size, encryption_iv, status, urls, auth_tag,
+              created_at, expires_at, processed_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW() + INTERVAL '${EXPIRY_DAYS} days', NOW())
+          `, [
+            newMediaId, userId, chatRoomId, existingMedia.s3_key, contentType,
+            fileSize, crypto.randomBytes(16).toString('hex'), 'completed', 
+            JSON.stringify(existingUrls), 'reused-content'
+          ]);
+
+          return {
+            success: true,
+            mediaId: newMediaId,
+            uploadUrl: null, // No upload needed
+            fields: {},
+            method: 'DUPLICATE_REUSE',
+            contentType,
+            isDuplicate: true,
+            originalMediaId: existingMedia.media_id
+          };
+        }
       }
 
       const mediaId = uuidv4();
@@ -502,7 +586,26 @@ export class MediaService {
         };
       }
 
-      const urls = JSON.parse(mediaData.urls || '{}');
+      // Safe JSON parsing - handle both string and object formats
+      let urls: any = {};
+      try {
+        if (typeof mediaData.urls === 'string') {
+          urls = JSON.parse(mediaData.urls || '{}');
+        } else if (typeof mediaData.urls === 'object' && mediaData.urls !== null) {
+          urls = mediaData.urls;
+        } else {
+          urls = {};
+        }
+      } catch (parseError) {
+        console.error('❌ [MediaService] Failed to parse URLs for retrieval:', {
+          mediaId,
+          urlsType: typeof mediaData.urls,
+          urlsValue: mediaData.urls,
+          error: parseError instanceof Error ? parseError.message : 'Unknown parse error'
+        });
+        urls = {};
+      }
+      
       console.log('🔗 [MediaService] Parsed URLs from database:', {
         mediaId,
         urls,
@@ -561,28 +664,75 @@ export class MediaService {
       }
 
       const mediaData = mediaResult.rows[0];
-      const urls = JSON.parse(mediaData.urls || '{}');
+      
+      // Safe JSON parsing - handle both string and object formats
+      let urls: any = {};
+      try {
+        if (typeof mediaData.urls === 'string') {
+          urls = JSON.parse(mediaData.urls || '{}');
+        } else if (typeof mediaData.urls === 'object' && mediaData.urls !== null) {
+          urls = mediaData.urls;
+        } else {
+          urls = {};
+        }
+      } catch (parseError) {
+        console.error('❌ [MediaService] Failed to parse URLs:', {
+          mediaId,
+          urlsType: typeof mediaData.urls,
+          urlsValue: mediaData.urls,
+          error: parseError instanceof Error ? parseError.message : 'Unknown parse error'
+        });
+        urls = {};
+      }
 
-      // Delete from S3
+      // Delete from S3 with safe error handling
       const deletePromises = [];
       
-      // Original file
-      deletePromises.push(s3.deleteObject({
-        Bucket: BUCKET_NAME,
-        Key: mediaData.s3_key
-      }).promise());
+      // Original file (may not exist if already processed)
+      if (mediaData.s3_key) {
+        deletePromises.push(
+          s3.deleteObject({
+            Bucket: BUCKET_NAME,
+            Key: mediaData.s3_key
+          }).promise().catch(error => {
+            console.warn('⚠️ [MediaService] Original file delete failed (may not exist):', {
+              mediaId,
+              key: mediaData.s3_key,
+              error: error.message
+            });
+            // Don't throw - original may have been deleted during processing
+          })
+        );
+      }
 
       // Encrypted versions
       for (const [sizeName, s3Key] of Object.entries(urls)) {
         if (s3Key) {
-          deletePromises.push(s3.deleteObject({
-            Bucket: BUCKET_NAME,
-            Key: s3Key as string
-          }).promise());
+          deletePromises.push(
+            s3.deleteObject({
+              Bucket: BUCKET_NAME,
+              Key: s3Key as string
+            }).promise().catch(error => {
+              console.warn('⚠️ [MediaService] Encrypted file delete failed:', {
+                mediaId,
+                size: sizeName,
+                key: s3Key,
+                error: error.message
+              });
+              // Don't throw - continue with other deletions
+            })
+          );
         }
       }
 
+      // Wait for all deletions (with individual error handling)
       await Promise.all(deletePromises);
+      
+      console.log('✅ [MediaService] S3 deletion completed for media:', {
+        mediaId,
+        originalKey: mediaData.s3_key,
+        encryptedKeys: Object.keys(urls).length
+      });
 
       // Mark as deleted in database
       await pool.query(`
