@@ -24,11 +24,13 @@ const badgeRoutes_1 = __importDefault(require("./routes/badgeRoutes")); // Badge
 const deviceRoutes_1 = __importDefault(require("./routes/deviceRoutes"));
 const enterpriseRoutes_1 = __importDefault(require("./routes/enterpriseRoutes")); // FCM Token yönetimi için route
 const monitoringRoutes_1 = __importDefault(require("./routes/monitoringRoutes")); // System monitoring için route
+const mediaRoutes_1 = __importDefault(require("./routes/mediaRoutes")); // Media upload/download için route
 const kafkaService_1 = __importDefault(require("./services/kafkaService"));
 // Import workers to run in same process
 const persistence_worker_1 = __importDefault(require("./workers/persistence.worker"));
 const realtime_worker_1 = __importDefault(require("./workers/realtime.worker"));
 const notification_worker_1 = __importDefault(require("./workers/notification.worker"));
+const media_cleanup_worker_1 = __importDefault(require("./workers/media-cleanup.worker"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3002; // 3001 port conflict olduğu için 3002 kullanıyoruz
@@ -57,6 +59,7 @@ app.use('/api/device', deviceRoutes_1.default); // Frontend compatibility - sing
 app.use('/api/devices', deviceRoutes_1.default); // Alternative plural form
 app.use('/api/enterprise', enterpriseRoutes_1.default);
 app.use('/api/monitoring', monitoringRoutes_1.default); // System monitoring endpoints
+app.use('/api/media', mediaRoutes_1.default); // Media upload/download endpoints
 // Bir test setine ait soruları yönetmek için nested route
 // testsRoutes içinden /:testId/questions gibi bir yapıya yönlendirme yapılabilir
 // VEYA doğrudan burada tanımlanabilir. Şimdilik testsRoutes içinde :testId altına questionsRoutes'u ekleyelim.
@@ -126,6 +129,13 @@ const startServer = async () => {
             catch (error) {
                 console.error('❌ Failed to start Notification Worker:', error);
             }
+            try {
+                media_cleanup_worker_1.default.start();
+                console.log('✅ Media Cleanup Worker started');
+            }
+            catch (error) {
+                console.error('❌ Failed to start Media Cleanup Worker:', error);
+            }
             console.log(`⚡ All workers running in same process`);
         });
     }
@@ -150,6 +160,7 @@ process.on('SIGINT', async () => {
         await persistence_worker_1.default.stop();
         await realtime_worker_1.default.stop();
         await notification_worker_1.default.stop();
+        media_cleanup_worker_1.default.stop();
         console.log('✅ All workers stopped');
     }
     catch (error) {
@@ -163,6 +174,7 @@ process.on('SIGTERM', async () => {
         await persistence_worker_1.default.stop();
         await realtime_worker_1.default.stop();
         await notification_worker_1.default.stop();
+        media_cleanup_worker_1.default.stop();
         console.log('✅ All workers stopped');
     }
     catch (error) {

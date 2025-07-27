@@ -4,12 +4,44 @@ import * as crypto from 'crypto';
 import pool from '../config/database';
 import { v4 as uuidv4 } from 'uuid';
 
-// AWS S3 Configuration from environment
+// Enterprise AWS S3 Configuration with proper error handling
+const AWS_REGION = process.env.AWS_REGION || 'eu-north-1';
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+
+// Validate AWS credentials on startup
+if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+  console.error('❌ AWS credentials missing in environment variables');
+  console.error('   Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY');
+  throw new Error('AWS credentials not configured');
+}
+
+// AWS S3 Configuration with enterprise settings
 const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'eu-north-1'
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+  region: AWS_REGION,
+  apiVersion: '2006-03-01',
+  maxRetries: 3,
+  retryDelayOptions: {
+    customBackoff: function(retryCount: number) {
+      return Math.pow(2, retryCount) * 100; // Exponential backoff
+    }
+  },
+  httpOptions: {
+    timeout: 30000, // 30 seconds
+    connectTimeout: 5000 // 5 seconds
+  },
+  s3ForcePathStyle: false, // Use virtual hosted-style URLs
+  signatureVersion: 'v4'
 });
+
+// Log AWS configuration on startup
+console.log('🎯 AWS S3 Configuration:');
+console.log(`   Region: ${AWS_REGION}`);
+console.log(`   Access Key: ${AWS_ACCESS_KEY_ID?.substring(0, 8)}...`);
+console.log(`   API Version: 2006-03-01`);
+console.log(`   Signature Version: v4`);
 
 // Configuration from .env
 const BUCKET_NAME = process.env.AWS_S3_BUCKET || 'easy-to-image-production';
@@ -19,6 +51,20 @@ const ENCRYPTION_KEY = process.env.MEDIA_ENCRYPTION_KEY || crypto.randomBytes(32
 const EXPIRY_DAYS = parseInt(process.env.MEDIA_EXPIRY_DAYS || '30');
 const MAX_FILE_SIZE = parseInt(process.env.MEDIA_MAX_FILE_SIZE || '10485760'); // 10MB
 const ALLOWED_TYPES = (process.env.MEDIA_ALLOWED_TYPES || 'jpeg,jpg,png,gif,webp').split(',');
+
+// Validate bucket access on startup
+s3.headBucket({ Bucket: BUCKET_NAME }).promise()
+  .then(() => {
+    console.log(`✅ S3 bucket access verified: ${BUCKET_NAME}`);
+  })
+  .catch((error) => {
+    console.error(`❌ S3 bucket access failed: ${BUCKET_NAME}`);
+    console.error(`   Error: ${error.message}`);
+    console.error(`   Code: ${error.code}`);
+    if (error.code === 'Forbidden') {
+      console.error('   💡 Check IAM permissions for this bucket');
+    }
+  });
 
 // Media processing configurations
 const MEDIA_SIZES = {
@@ -224,43 +270,107 @@ export class MediaService {
 
       const mediaData = mediaResult.rows[0];
 
-      // Verify S3 object metadata
-      console.log('🔍 [MediaService] S3 object metadata doğrulanıyor:', {
+      // Enterprise S3 metadata verification with enhanced error handling
+      console.log('🔍 [MediaService] S3 object metadata verification starting:', {
         bucket: BUCKET_NAME,
-        key: mediaData.s3_key
+        key: mediaData.s3_key,
+        region: AWS_REGION
       });
-      const headObject = await s3.headObject({
-        Bucket: BUCKET_NAME,
-        Key: mediaData.s3_key
-      }).promise();
 
-      const s3ETag = headObject.ETag?.replace(/"/g, '');
-      const s3FileSize = headObject.ContentLength;
+      try {
+        const headObject = await s3.headObject({
+          Bucket: BUCKET_NAME,
+          Key: mediaData.s3_key
+        }).promise();
 
-      const clientETag = (eTag || '').replace(/"/g, '');
+        const s3ETag = headObject.ETag?.replace(/"/g, '');
+        const s3FileSize = headObject.ContentLength;
+        const clientETag = (eTag || '').replace(/"/g, '');
 
-      if (s3ETag !== clientETag || s3FileSize !== fileSize) {
-        console.warn('S3 metadata mismatch:', {
+        console.log('✅ [MediaService] S3 metadata retrieved successfully:', {
           mediaId,
-          client: { eTag: clientETag, fileSize },
-          s3: { eTag: s3ETag, fileSize: s3FileSize }
+          s3: { 
+            eTag: s3ETag, 
+            fileSize: s3FileSize,
+            lastModified: headObject.LastModified,
+            contentType: headObject.ContentType
+          },
+          client: { 
+            eTag: clientETag, 
+            fileSize 
+          }
         });
-        return { success: false, error: 'S3 metadata mismatch' };
+
+        // Enhanced ETag comparison with multiple format support
+        const eTagsMatch = s3ETag === clientETag || 
+                          s3ETag === `"${clientETag}"` || 
+                          `"${s3ETag}"` === clientETag ||
+                          s3ETag?.toLowerCase() === clientETag?.toLowerCase();
+
+        if (!eTagsMatch || s3FileSize !== fileSize) {
+          console.warn('⚠️ [MediaService] S3 metadata mismatch detected:', {
+            mediaId,
+            eTagMatch: eTagsMatch,
+            fileSizeMatch: s3FileSize === fileSize,
+            client: { eTag: clientETag, fileSize },
+            s3: { eTag: s3ETag, fileSize: s3FileSize }
+          });
+          return { success: false, error: 'S3 metadata mismatch' };
+        }
+
+        console.log('✅ [MediaService] S3 metadata verification passed');
+
+      } catch (s3Error: any) {
+        console.error('❌ [MediaService] S3 metadata verification failed:', {
+          mediaId,
+          error: s3Error.message,
+          code: s3Error.code,
+          statusCode: s3Error.statusCode,
+          requestId: s3Error.requestId,
+          region: s3Error.region
+        });
+
+        if (s3Error.code === 'Forbidden' || s3Error.statusCode === 403) {
+          console.error('🚨 [MediaService] AWS IAM Permissions Issue Detected:');
+          console.error('   The IAM user/role lacks required S3 permissions');
+          console.error('   Required permissions: s3:HeadObject, s3:GetObject');
+          console.error(`   Resource: arn:aws:s3:::${BUCKET_NAME}/*`);
+          console.error(`   IAM User: ${AWS_ACCESS_KEY_ID?.substring(0, 8)}...`);
+        }
+
+        return { 
+          success: false, 
+          error: `S3 access denied: ${s3Error.message}. Check IAM permissions.` 
+        };
       }
 
-      // Download original from S3
-      console.log('📥 [MediaService] S3\'ten dosya indiriliyor:', { 
+      // Download original from S3 with enhanced error handling
+      console.log('📥 [MediaService] Downloading original file from S3:', { 
         bucket: BUCKET_NAME, 
         key: mediaData.s3_key 
       });
 
-      const originalObject = await s3.getObject({
-        Bucket: BUCKET_NAME,
-        Key: mediaData.s3_key
-      }).promise();
+      let originalObject;
+      try {
+        originalObject = await s3.getObject({
+          Bucket: BUCKET_NAME,
+          Key: mediaData.s3_key
+        }).promise();
+      } catch (downloadError: any) {
+        console.error('❌ [MediaService] S3 file download failed:', {
+          mediaId,
+          error: downloadError.message,
+          code: downloadError.code,
+          statusCode: downloadError.statusCode
+        });
+        return { 
+          success: false, 
+          error: `Failed to download file: ${downloadError.message}` 
+        };
+      }
 
       if (!originalObject.Body) {
-        throw new Error('Failed to download original file');
+        throw new Error('Downloaded file has no body content');
       }
 
       // Convert S3 Body to Buffer (supports Uint8Array, Buffer, stream)
@@ -268,7 +378,7 @@ export class MediaService {
         ? originalObject.Body 
         : Buffer.from(originalObject.Body as Uint8Array);
 
-      console.log('✅ [MediaService] S3 dosya indirildi:', { 
+      console.log('✅ [MediaService] File downloaded successfully:', { 
         size: originalBuffer.length,
         contentType: originalObject.ContentType
       });
@@ -302,6 +412,12 @@ export class MediaService {
 
       // Generate presigned download URLs
       const presignedUrls = await this.generatePresignedDownloadUrls(urls);
+
+      console.log('🎉 [MediaService] Media processing completed successfully:', {
+        mediaId,
+        processedSizes: Object.keys(urls),
+        hasPresignedUrls: Object.keys(presignedUrls).length > 0
+      });
 
       return {
         success: true,

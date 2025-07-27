@@ -1,10 +1,13 @@
 const axios = require('axios');
 const fs = require('fs');
 const FormData = require('form-data');
+const jwt = require('jsonwebtoken');
 
 // Test configuration
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
-const TEST_TOKEN = process.env.TEST_TOKEN || 'your_test_jwt_token';
+const JWT_SECRET = 'your_super_secret_jwt_key_change_this_in_production';
+const testUser = { userId: 28, email: "elif@example.com", username: "elif", id: 28 };
+const TEST_TOKEN = jwt.sign(testUser, JWT_SECRET, { expiresIn: '24h' });
 const TEST_ROOM_ID = process.env.TEST_ROOM_ID || 'test-room-1';
 
 // Log test configuration
@@ -53,24 +56,12 @@ async function testMediaSystem() {
     console.log('   Upload URL:', uploadUrl.substring(0, 50) + '...');
     console.log('');
 
-    // Test 3: Upload to S3
+    // Test 3: Upload to S3 (using PUT method)
     console.log('3️⃣ Testing S3 Upload...');
-    const formData = new FormData();
     
-    // Add all presigned fields
-    Object.entries(fields).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-    
-    // Add the file
-    formData.append('file', TEST_IMAGE_BUFFER, {
-      filename: 'test-image.png',
-      contentType: 'image/png'
-    });
-
-    const uploadResponse = await axios.post(uploadUrl, formData, {
+    const uploadResponse = await axios.put(uploadUrl, TEST_IMAGE_BUFFER, {
       headers: {
-        ...formData.getHeaders()
+        'Content-Type': 'image/png'
       },
       maxRedirects: 0,
       validateStatus: status => status >= 200 && status < 400
@@ -82,8 +73,11 @@ async function testMediaSystem() {
 
     // Test 4: Complete Upload
     console.log('4️⃣ Testing Upload Completion...');
+    const eTag = uploadResponse.headers.etag || uploadResponse.headers.ETag || '"test-etag"';
     const completeResponse = await axios.post(`${BASE_URL}/api/media/complete`, {
-      mediaId: mediaId
+      mediaId: mediaId,
+      eTag: eTag.replace(/"/g, ''), // Remove quotes from ETag
+      fileSize: TEST_IMAGE_BUFFER.length
     }, {
       headers: { 
         Authorization: `Bearer ${TEST_TOKEN}`,

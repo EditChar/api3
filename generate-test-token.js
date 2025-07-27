@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 // Generate a test token
-const ACCESS_TOKEN_SECRET = 'your_current_jwt_secret_or_a_new_strong_one';
+const ACCESS_TOKEN_SECRET = 'your_super_secret_jwt_key_change_this_in_production';
 
 const testUser = {
   userId: 28,
