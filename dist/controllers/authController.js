@@ -9,12 +9,12 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const database_1 = __importDefault(require("../config/database"));
 const uuid_1 = require("uuid");
 // --- Load secrets from .env and ensure they are defined ---
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET; // Fallback to JWT_SECRET
 const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || '15m';
 const REFRESH_TOKEN_EXPIRES_IN_STRING = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
-if (!ACCESS_TOKEN_SECRET) {
-    console.error('FATAL ERROR: ACCESS_TOKEN_SECRET is not defined in environment variables.');
+if (!JWT_SECRET) {
+    console.error('FATAL ERROR: JWT_SECRET is not defined in environment variables.');
     process.exit(1);
 }
 if (!REFRESH_TOKEN_SECRET) {
@@ -25,7 +25,7 @@ const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000; // Bu sabit kalabil
 const USER_ACTIVITY_THRESHOLD_MS = 1 * 60 * 60 * 1000; // Bu da sabit kalabilir
 const generateAndSaveTokens = async (user, res) => {
     const payload = { id: user.id, username: user.username, role: user.role };
-    const secret = ACCESS_TOKEN_SECRET;
+    const secret = JWT_SECRET;
     const options = {
         algorithm: 'HS256',
         expiresIn: ACCESS_TOKEN_EXPIRES_IN
@@ -123,7 +123,7 @@ const refreshTokenHandler = async (req, res) => {
         }
         const user = userResult.rows[0];
         const payload = { id: user.id, username: user.username, role: user.role };
-        const secret = ACCESS_TOKEN_SECRET;
+        const secret = JWT_SECRET;
         const options = {
             algorithm: 'HS256',
             expiresIn: ACCESS_TOKEN_EXPIRES_IN

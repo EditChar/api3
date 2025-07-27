@@ -5,6 +5,7 @@ export interface Message {
   content: string; // DB'de content olarak kayıtlı
   message_type: 'text' | 'image';
   image_url?: string | null;
+  media_id?: string | null; // UUID for encrypted media
   created_at?: Date;
   updated_at?: Date;
 }
@@ -16,6 +17,7 @@ export interface SocketMessage {
   message: string;
   message_type: 'text' | 'image';
   image_url?: string | null;
+  media_id?: string | null; // UUID for encrypted media
   timestamp: number;
 }
 
@@ -34,6 +36,7 @@ export interface SendMessageRequest {
   message: string;
   messageType: 'text' | 'image';
   imageUrl?: string;
+  mediaId?: string; // UUID for encrypted media
 }
 
  

@@ -23,6 +23,7 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const badgeRoutes_1 = __importDefault(require("./routes/badgeRoutes")); // Badge sistemi için route
 const deviceRoutes_1 = __importDefault(require("./routes/deviceRoutes"));
 const enterpriseRoutes_1 = __importDefault(require("./routes/enterpriseRoutes")); // FCM Token yönetimi için route
+const monitoringRoutes_1 = __importDefault(require("./routes/monitoringRoutes")); // System monitoring için route
 const kafkaService_1 = __importDefault(require("./services/kafkaService"));
 // Import workers to run in same process
 const persistence_worker_1 = __importDefault(require("./workers/persistence.worker"));
@@ -51,8 +52,11 @@ app.use('/api/message-requests', messageRequestRoutes_1.default); // /api/messag
 app.use('/api/chat', chatRoutes_1.default); // /api/chat ile başlayanlar chatRoutes'a gider
 app.use('/api/notifications', notificationRoutes_1.default); // /api/notifications ile başlayanlar notificationRoutes'a gider
 app.use('/api/badges', badgeRoutes_1.default); // /api/badges ile başlayanlar badgeRoutes'a gider
-app.use('/api/devices', deviceRoutes_1.default);
-app.use('/api/enterprise', enterpriseRoutes_1.default); // /api/devices ile başlayanlar deviceRoutes'a gider
+// FCM Device Management Routes (Both singular and plural for compatibility)
+app.use('/api/device', deviceRoutes_1.default); // Frontend compatibility - singular
+app.use('/api/devices', deviceRoutes_1.default); // Alternative plural form
+app.use('/api/enterprise', enterpriseRoutes_1.default);
+app.use('/api/monitoring', monitoringRoutes_1.default); // System monitoring endpoints
 // Bir test setine ait soruları yönetmek için nested route
 // testsRoutes içinden /:testId/questions gibi bir yapıya yönlendirme yapılabilir
 // VEYA doğrudan burada tanımlanabilir. Şimdilik testsRoutes içinde :testId altına questionsRoutes'u ekleyelim.

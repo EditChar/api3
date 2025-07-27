@@ -105,11 +105,11 @@ class EnterpriseNotificationService {
                     ttl: ttl * 1000, // Android TTL in milliseconds
                     notification: {
                         sound: sound,
-                        channelId: 'chat_notifications',
+                        channelId: 'default',
                         priority: priority,
                         defaultSound: true,
                         defaultVibrateTimings: true,
-                        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                        // ❌ REMOVED: clickAction: 'FLUTTER_NOTIFICATION_CLICK', - This was causing crashes
                     },
                 },
                 apns: {
@@ -125,8 +125,8 @@ class EnterpriseNotificationService {
                             },
                             sound: sound,
                             badge: badge,
-                            'mutable-content': 1,
-                            category: type,
+                            // ❌ REMOVED: 'mutable-content': 1, - Invalid format for iOS
+                            // ❌ REMOVED: category: type, - Undefined category causes crashes
                         },
                     },
                 },

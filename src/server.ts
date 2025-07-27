@@ -18,11 +18,14 @@ import notificationRoutes from './routes/notificationRoutes'; // Bildirimler iç
 import badgeRoutes from './routes/badgeRoutes'; // Badge sistemi için route
 import deviceRoutes from './routes/deviceRoutes';
 import enterpriseRoutes from './routes/enterpriseRoutes'; // FCM Token yönetimi için route
+import monitoringRoutes from './routes/monitoringRoutes'; // System monitoring için route
+import mediaRoutes from './routes/mediaRoutes'; // Media upload/download için route
 import kafkaService from './services/kafkaService';
 // Import workers to run in same process
 import persistenceWorker from './workers/persistence.worker';
 import realtimeWorker from './workers/realtime.worker';
 import notificationWorker from './workers/notification.worker';
+import mediaCleanupWorker from './workers/media-cleanup.worker';
 
 dotenv.config();
 
@@ -58,6 +61,8 @@ app.use('/api/badges', badgeRoutes); // /api/badges ile başlayanlar badgeRoutes
 app.use('/api/device', deviceRoutes);   // Frontend compatibility - singular
 app.use('/api/devices', deviceRoutes);  // Alternative plural form
 app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/monitoring', monitoringRoutes); // System monitoring endpoints
+app.use('/api/media', mediaRoutes); // Media upload/download endpoints
 
 // Bir test setine ait soruları yönetmek için nested route
 // testsRoutes içinden /:testId/questions gibi bir yapıya yönlendirme yapılabilir
@@ -133,6 +138,13 @@ const startServer = async () => {
       } catch (error) {
         console.error('❌ Failed to start Notification Worker:', error);
       }
+
+      try {
+        mediaCleanupWorker.start();
+        console.log('✅ Media Cleanup Worker started');
+      } catch (error) {
+        console.error('❌ Failed to start Media Cleanup Worker:', error);
+      }
       
       console.log(`⚡ All workers running in same process`);
     });
@@ -162,6 +174,7 @@ process.on('SIGINT', async () => {
     await persistenceWorker.stop();
     await realtimeWorker.stop();
     await notificationWorker.stop();
+    mediaCleanupWorker.stop();
     console.log('✅ All workers stopped');
   } catch (error) {
     console.error('❌ Error stopping workers:', error);
@@ -177,6 +190,7 @@ process.on('SIGTERM', async () => {
     await persistenceWorker.stop();
     await realtimeWorker.stop();
     await notificationWorker.stop();
+    mediaCleanupWorker.stop();
     console.log('✅ All workers stopped');
   } catch (error) {
     console.error('❌ Error stopping workers:', error);

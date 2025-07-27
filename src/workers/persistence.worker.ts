@@ -10,7 +10,7 @@ class PersistenceWorker {
   private messageBatch: ChatMessage[] = [];
   private eventBatch: UserEvent[] = [];
   private analyticsBatch: AnalyticsEvent[] = [];
-  private flushTimer: NodeJS.Timeout | null = null;
+  private flushTimer: any | null = null;
 
   constructor() {
     console.log('🚀 Persistence Worker initializing...');

@@ -11,17 +11,8 @@ const uploadDir = path_1.default.join(__dirname, '..', '..', 'public', 'uploads'
 if (!fs_1.default.existsSync(uploadDir)) {
     fs_1.default.mkdirSync(uploadDir, { recursive: true });
 }
-// Dosya depolama ayarları
-const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        // Dosya adının benzersiz olmasını sağlamak için tarih ve rastgele bir sayı ekliyoruz
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
-    }
-});
+// Modern avatar sistemi için memory storage kullan
+const storage = multer_1.default.memoryStorage();
 // Dosya tipini kontrol eden filtre
 const fileFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;

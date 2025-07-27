@@ -1,15 +1,110 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Socket.IO Test</title>
+    <title>🧪 Enterprise Socket.IO Test Panel</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f8f9fa;
+            padding-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        #logoutButton {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+        #logoutButton:hover {
+            transform: translateY(-2px);
+        }
+        #status {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #logs {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+        #logs p {
+            margin: 5px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .connected { background: #d4edda !important; color: #155724 !important; }
+        .disconnected { background: #f8d7da !important; color: #721c24 !important; }
+        .error { background: #fff3cd !important; color: #856404 !important; }
+    </style>
 </head>
 <body>
-    <h1>Socket.IO Connection Test</h1>
-    <div id="status">Disconnected</div>
-    <div id="logs"></div>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Enterprise Socket.IO Test Panel</h1>
+            <button id="logoutButton">🚪 Çıkış Yap</button>
+        </div>
+        <div id="status" class="disconnected">🔌 Disconnected - Admin Panel</div>
+        <div id="logs"></div>
+    </div>
 
     <script>
+        // Admin Authentication Check with Smart Redirect
+        const adminToken = localStorage.getItem('adminToken');
+        const adminUser = JSON.parse(localStorage.getItem('adminUser'));
+
+        if (!adminToken || !adminUser || adminUser.role !== 'admin') {
+            // Clean up invalid tokens
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            
+            // Redirect to login with return URL
+            const currentPage = 'test-socket.html';
+            window.location.href = `index.html?redirect=${encodeURIComponent(currentPage)}`;
+        }
+
+        // Logout functionality
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = 'index.html';
+        });
+
         const statusDiv = document.getElementById('status');
         const logsDiv = document.getElementById('logs');
 
@@ -20,14 +115,13 @@
             console.log(message);
         }
 
-        // Test token (gerçek uygulamada auth'dan alınır)
-        const testToken = 'test-token-123';
-
+        // Use real admin token for authentication
+        log('🔐 Connecting with admin token...');
         log('Attempting to connect to Socket.IO server...');
 
         const socket = io('http://localhost:3001', {
             auth: {
-                token: testToken
+                token: adminToken
             },
             transports: ['websocket', 'polling'],
             timeout: 20000,
@@ -35,20 +129,30 @@
         });
 
         socket.on('connect', () => {
-            statusDiv.textContent = 'Connected: ' + socket.id;
-            statusDiv.style.color = 'green';
+            statusDiv.textContent = '✅ Connected: ' + socket.id;
+            statusDiv.className = 'connected';
             log('✅ Connected to server with ID: ' + socket.id);
+            log('🎯 Admin authentication successful');
         });
 
         socket.on('connect_error', (error) => {
-            statusDiv.textContent = 'Connection Error: ' + error.message;
-            statusDiv.style.color = 'red';
+            statusDiv.textContent = '❌ Connection Error: ' + error.message;
+            statusDiv.className = 'error';
             log('❌ Connection error: ' + error.message);
+                         if (error.message.includes('Authentication')) {
+                log('🔐 Auth error - redirecting to login...');
+                setTimeout(() => {
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    const currentPage = 'test-socket.html';
+                    window.location.href = `index.html?redirect=${encodeURIComponent(currentPage)}`;
+                }, 3000);
+             }
         });
 
         socket.on('disconnect', (reason) => {
-            statusDiv.textContent = 'Disconnected: ' + reason;
-            statusDiv.style.color = 'orange';
+            statusDiv.textContent = '🔌 Disconnected: ' + reason;
+            statusDiv.className = 'disconnected';
             log('🔌 Disconnected: ' + reason);
         });
 

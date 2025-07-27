@@ -3,10 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminUser = JSON.parse(localStorage.getItem('adminUser'));
 
     if (!adminToken || !adminUser || adminUser.role !== 'admin') {
-        alert('Giriş yapmadınız veya admin yetkiniz yok. Lütfen giriş yapın.');
+        // Clean up invalid tokens
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
-        window.location.href = 'index.html'; // Login sayfasına yönlendir
+        
+        // Redirect to login with return URL
+        const currentPage = 'admin.html';
+        window.location.href = `index.html?redirect=${encodeURIComponent(currentPage)}`;
         return;
     }
 

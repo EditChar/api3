@@ -1,15 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const errorMessageElement = document.getElementById('errorMessage');
+    const redirectInfoElement = document.getElementById('redirectInfo');
+    const redirectTargetElement = document.getElementById('redirectTarget');
 
-    // Eğer zaten token varsa ve geçerliyse admin paneline yönlendir (opsiyonel)
-    // Bu, daha gelişmiş bir kontrol gerektirebilir (token'ın geçerliliğini sunucuya sormak gibi)
-    // Şimdilik basitçe token varsa yönlendirelim.
+    // Check for redirect parameter and show information
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectTo = urlParams.get('redirect');
+    
+    if (redirectTo && redirectInfoElement && redirectTargetElement) {
+        // Show redirect information to user
+        const panelNames = {
+            'admin.html': 'Admin Yönetim',
+            'monitoring.html': 'Sistem Monitoring',
+            'test-socket.html': 'Socket Test'
+        };
+        
+        const panelName = panelNames[redirectTo] || redirectTo;
+        redirectTargetElement.textContent = panelName;
+        redirectInfoElement.style.display = 'block';
+    }
+
+    // Check if already logged in
     if (localStorage.getItem('adminToken')) {
-        // Token'ın geçerliliğini burada sunucuya sorup emin olmak daha iyi olur.
-        // Şimdilik, token varsa admin.html'e yönlendirelim.
-        // window.location.href = 'admin.html'; 
-        // Daha iyi bir UX için, token kontrolünü admin.html'de yapıp, geçersizse login'e atabiliriz.
+        // If already logged in and there's a redirect, go directly there
+        if (redirectTo) {
+            window.location.href = redirectTo;
+        } else {
+            window.location.href = 'admin.html';
+        }
     }
 
     loginForm.addEventListener('submit', async (event) => {
@@ -41,8 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.user && data.user.role === 'admin') {
                     localStorage.setItem('adminToken', data.accessToken);
                     localStorage.setItem('adminUser', JSON.stringify(data.user));
-                    console.log('Admin token saved, redirecting to admin.html'); // Debug log
-                    window.location.href = 'admin.html'; // Başarılı admin girişinde admin.html'e yönlendir
+                    console.log('Admin token saved, determining redirect...'); // Debug log
+                    
+                    // Smart redirect - use already parsed redirect parameter
+                    
+                    if (redirectTo) {
+                        console.log('Redirecting to requested page:', redirectTo);
+                        window.location.href = redirectTo;
+                    } else {
+                        console.log('No redirect parameter, going to default admin.html');
+                        window.location.href = 'admin.html'; // Default admin panel
+                    }
                 } else {
                     console.log('User role is not admin:', data.user?.role); // Debug log
                     errorMessageElement.textContent = 'Admin yetkisine sahip değilsiniz.';

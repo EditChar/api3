@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Avatar System - Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .system-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .metric-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+        }
+
+        .icon-storage { background: #e8f5e8; color: #28a745; }
+        .icon-performance { background: #e3f2fd; color: #2196f3; }
+        .icon-users { background: #fff3e0; color: #ff9800; }
+        .icon-costs { background: #fce4ec; color: #e91e63; }
+        .icon-errors { background: #ffebee; color: #f44336; }
+        .icon-uploads { background: #f3e5f5; color: #9c27b0; }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .metric-label {
+            color: #7f8c8d;
+            margin-bottom: 15px;
+        }
+
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .trend-up {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .trend-down {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .trend-stable {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .time-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-btn {
+            padding: 8px 16px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .time-btn.active,
+        .time-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .chart-placeholder {
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .alerts-header {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+        }
+
+        .alert-critical {
+            background: #fff5f5;
+            border-left-color: #f56565;
+        }
+
+        .alert-warning {
+            background: #fffdf7;
+            border-left-color: #ed8936;
+        }
+
+        .alert-info {
+            background: #f7faff;
+            border-left-color: #4299e1;
+        }
+
+        .alert-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            color: white;
+        }
+
+        .refresh-controls {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin: 0 10px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .auto-refresh {
+            color: #28a745;
+            font-weight: 600;
+            margin-left: 20px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading.active {
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .time-selector {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h1>🚀 Enterprise Avatar System Dashboard</h1>
+                <button id="logoutButton" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: 600;">
+                    🚪 Çıkış Yap
+                </button>
+            </div>
+            <div id="systemStatus" class="system-status status-healthy">
+                <span>●</span> System Healthy
+            </div>
+            <div style="margin-top: 10px; color: #7f8c8d;">
+                Last Updated: <span id="lastUpdated">--</span>
+            </div>
+        </div>
+
+        <!-- Key Metrics Grid -->
+        <div class="dashboard-grid">
+            <!-- Storage Metrics -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Storage Usage</div>
+                    <div class="metric-icon icon-storage">💾</div>
+                </div>
+                <div class="metric-value" id="storageUsage">--</div>
+                <div class="metric-label">Total Storage Used</div>
+                <div class="metric-trend trend-up" id="storageTrend">
+                    <span>📈</span> Loading...
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Response Time</div>
+                    <div class="metric-icon icon-performance">⚡</div>
+                </div>
+                <div class="metric-value" id="responseTime">--</div>
+                <div class="metric-label">Average Response Time</div>
+                <div class="metric-trend trend-stable" id="responseTrend">
+                    <span>📊</span> Loading...
+                </div>
+            </div>
+
+            <!-- Active Users -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Active Users</div>
+                    <div class="metric-icon icon-users">👥</div>
+                </div>
+                <div class="metric-value" id="activeUsers">--</div>
+                <div class="metric-label">Daily Active Uploaders</div>
+                <div class="metric-trend trend-up" id="userGrowthTrend">
+                    <span>📈</span> Loading...
+                </div>
+            </div>
+
+            <!-- Monthly Costs -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Monthly Cost</div>
+                    <div class="metric-icon icon-costs">💰</div>
+                </div>
+                <div class="metric-value" id="monthlyCost">--</div>
+                <div class="metric-label">Estimated Monthly Spend</div>
+                <div class="metric-trend trend-down" id="costTrend">
+                    <span>📉</span> Loading...
+                </div>
+            </div>
+
+            <!-- Error Rate -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Error Rate</div>
+                    <div class="metric-icon icon-errors">🚨</div>
+                </div>
+                <div class="metric-value" id="errorRate">--</div>
+                <div class="metric-label">Last 24 Hours</div>
+                <div class="metric-trend trend-stable" id="errorTrend">
+                    <span>✅</span> Loading...
+                </div>
+            </div>
+
+            <!-- Upload Success -->
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Upload Success</div>
+                    <div class="metric-icon icon-uploads">📤</div>
+                </div>
+                <div class="metric-value" id="uploadSuccess">--</div>
+                <div class="metric-label">Success Rate</div>
+                <div class="metric-trend trend-up" id="uploadSuccessTrend">
+                    <span>🎯</span> Loading...
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title">📊 System Performance Trends</div>
+                <div class="time-selector">
+                    <button class="time-btn active" data-timeframe="1h">1H</button>
+                    <button class="time-btn" data-timeframe="6h">6H</button>
+                    <button class="time-btn" data-timeframe="24h">24H</button>
+                    <button class="time-btn" data-timeframe="7d">7D</button>
+                    <button class="time-btn" data-timeframe="30d">30D</button>
+                </div>
+            </div>
+            <div class="chart-placeholder" id="performanceChart">
+                📈 Real-time performance chart will be displayed here
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="alerts-section">
+            <div class="alerts-header">🔔 System Alerts & Notifications</div>
+            <div id="alertsList">
+                <!-- Alerts will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Refresh Controls -->
+        <div class="refresh-controls">
+            <button class="refresh-btn" onclick="refreshDashboard()">🔄 Refresh Now</button>
+            <button class="refresh-btn" onclick="toggleAutoRefresh()">⏱️ Auto Refresh</button>
+            <span class="auto-refresh" id="autoRefreshStatus">Auto-refresh: OFF</span>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loadingIndicator">
+            🔄 Loading dashboard data...
+        </div>
+    </div>
+
+    <script>
+        // Admin Authentication Check with Smart Redirect
+        const adminToken = localStorage.getItem('adminToken');
+        const adminUser = JSON.parse(localStorage.getItem('adminUser'));
+
+        if (!adminToken || !adminUser || adminUser.role !== 'admin') {
+            // Clean up invalid tokens
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            
+            // Redirect to login with return URL
+            const currentPage = 'monitoring.html';
+            window.location.href = `index.html?redirect=${encodeURIComponent(currentPage)}`;
+        }
+    </script>
+    <script src="monitoring.js"></script>
+</body>
+</html> 

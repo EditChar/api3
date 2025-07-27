@@ -388,7 +388,7 @@ export const getMessages = async (req: AuthenticatedRequest, res: Response) => {
 export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
   const senderId = req.user?.id;
   const roomId = req.params.roomId;
-  const { message, messageType = 'text', imageUrl } = req.body;
+  const { message, messageType = 'text', imageUrl, mediaId } = req.body;
   const messageId = uuidv4();
 
   if (!senderId) {
@@ -403,8 +403,57 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: 'Message content is required for text messages' });
   }
 
-  if (messageType === 'image' && !imageUrl) {
-    return res.status(400).json({ message: 'Image URL is required for image messages' });
+  if (messageType === 'image' && !imageUrl && !mediaId) {
+    return res.status(400).json({ message: 'Image URL or Media ID is required for image messages' });
+  }
+
+  // Validate media ownership if mediaId is provided
+  if (mediaId) {
+    console.log('🔍 [ChatController] Media validation başlatıldı:', { mediaId, senderId, roomId });
+    
+    try {
+      const mediaResult = await pool.query(`
+        SELECT cm.*, 
+               CASE 
+                 WHEN cr.user1_id = $2 OR cr.user2_id = $2 THEN true 
+                 ELSE false 
+               END as has_access
+        FROM chat_media cm
+        JOIN chats cr ON cr.id = cm.chat_room_id
+        WHERE cm.media_id = $1 AND cm.status = 'completed' AND cm.user_id = $2
+      `, [mediaId, senderId]);
+
+      console.log('📊 [ChatController] Media validation sonucu:', { 
+        found: mediaResult.rows.length,
+        mediaId,
+        senderId,
+        status: mediaResult.rows[0]?.status,
+        hasAccess: mediaResult.rows[0]?.has_access
+      });
+
+      if (mediaResult.rows.length === 0) {
+        // Debug: Check if media exists with any status
+        const debugResult = await pool.query(`
+          SELECT media_id, user_id, status, chat_room_id FROM chat_media WHERE media_id = $1
+        `, [mediaId]);
+        
+        console.log('🔍 [ChatController] Media debug info:', { 
+          mediaId,
+          allRecords: debugResult.rows
+        });
+
+        return res.status(400).json({ message: 'Invalid media ID or media not accessible' });
+      }
+
+      // Check if media has expired
+      const mediaData = mediaResult.rows[0];
+      if (new Date(mediaData.expires_at) < new Date()) {
+        return res.status(400).json({ message: 'Media has expired' });
+      }
+    } catch (mediaValidationError) {
+      console.error('Media validation error:', mediaValidationError);
+      return res.status(500).json({ message: 'Error validating media' });
+    }
   }
 
   try {
@@ -426,13 +475,14 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
       id: messageId,
       roomId: roomId,
       userId: senderId,
-      content: messageType === 'text' ? message : imageUrl,
+      content: messageType === 'text' ? message : (mediaId ? `media:${mediaId}` : imageUrl),
       timestamp: Date.now(),
       messageType: messageType,
       metadata: {
         receiverId: receiverId,
         platform: req.headers['user-agent'] || 'unknown',
-        ip: req.ip || 'unknown'
+        ip: req.ip || 'unknown',
+        mediaId: mediaId || undefined
       }
     };
 
@@ -458,10 +508,11 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
         if (socketManager) {
           const optimisticChatListUpdate = {
             roomId: roomId,
-            last_message: messageType === 'text' ? message : '📷 Resim',
+            last_message: messageType === 'text' ? message : '📷 Fotoğraf',
             last_message_at: new Date(chatMessage.timestamp).toISOString(),
             sender_id: senderId,
             message_type: messageType,
+            media_id: mediaId || undefined,
             optimistic: true // Worker güncellemesinden ayırt etmek için
           };
           
@@ -492,10 +543,11 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
         // 🚀 OPTIMISTIC UPDATE DATA (Frontend için)
         optimistic_chat_update: {
           roomId: roomId,
-          last_message: messageType === 'text' ? message : '📷 Resim',
+          last_message: messageType === 'text' ? message : '📷 Fotoğraf',
           last_message_at: new Date(chatMessage.timestamp).toISOString(),
           sender_id: senderId,
           message_type: messageType,
+          media_id: mediaId || undefined,
           optimistic: true
         }
       });
@@ -527,8 +579,8 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
       // 6. Fallback: Save to PostgreSQL
       try {
         await pool.query(
-          'INSERT INTO messages (id, chat_id, sender_id, content, message_type, created_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-          [messageId, roomId, senderId, chatMessage.content, messageType, new Date(chatMessage.timestamp)]
+          'INSERT INTO messages (id, chat_id, sender_id, content, message_type, media_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+          [messageId, roomId, senderId, chatMessage.content, messageType, mediaId || null, new Date(chatMessage.timestamp)]
         );
         console.log('✅ Fallback: Message saved to PostgreSQL:', messageId);
       } catch (dbError) {

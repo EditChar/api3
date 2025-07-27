@@ -167,7 +167,7 @@ const updateNotificationPreferences = async (req, res) => {
 };
 exports.updateNotificationPreferences = updateNotificationPreferences;
 /**
- * 🏢 ENTERPRISE: Test notification gönder
+ * 🏢 ENTERPRISE: Test notification gönder (Crash-safe version)
  */
 const sendTestNotification = async (req, res) => {
     const userId = req.user?.id;
@@ -176,29 +176,45 @@ const sendTestNotification = async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized' });
     }
     try {
+        console.log(`🧪 Sending test notification to user ${userId}`);
+        // 🛡️ Crash-safe minimal payload
         const result = await enterpriseNotificationService_1.enterpriseNotificationService.sendEnterpriseNotification({
             userId,
-            title,
-            body,
+            title: title.toString(), // Ensure string
+            body: body.toString(), // Ensure string
             type: 'message_received',
             data: {
                 test: 'true',
                 enterprise: 'true',
-                timestamp: Date.now().toString()
+                timestamp: Date.now().toString(),
+                source: 'test_endpoint'
             },
-            priority: 'normal'
+            priority: 'normal', // Use normal priority for tests
+            sound: 'default', // Explicit default sound
+            ttl: 3600 // 1 hour TTL
         });
+        console.log(`🧪 Test notification result:`, result);
         res.status(200).json({
             message: 'Enterprise test notification sent successfully',
             enterprise: {
                 testResult: result,
-                sentAt: new Date().toISOString()
+                sentAt: new Date().toISOString(),
+                userId,
+                crashSafe: true
             }
         });
     }
     catch (error) {
-        console.error('Error sending test notification:', error);
-        res.status(500).json({ message: 'Error sending enterprise test notification' });
+        console.error('❌ Test notification error:', error);
+        res.status(500).json({
+            message: 'Enterprise test notification failed',
+            error: error.message || 'Unknown error',
+            enterprise: {
+                userId,
+                failedAt: new Date().toISOString(),
+                crashSafe: true
+            }
+        });
     }
 };
 exports.sendTestNotification = sendTestNotification;

@@ -6,8 +6,11 @@ const deviceController_1 = require("../controllers/deviceController");
 const router = (0, express_1.Router)();
 // Tüm route'lar authentication gerektiriyor
 router.use(authMiddleware_1.authMiddleware);
-// FCM Token kaydetme
+// 🏢 ENTERPRISE: FCM Token Management
+// Frontend integration endpoints (as documented in React Native Firebase Integration Prompt)
+router.post('/register-token', deviceController_1.registerFCMToken);
+router.post('/unregister-token', deviceController_1.unregisterFCMToken);
+// 🔄 LEGACY: Backward compatibility endpoints
 router.post('/fcm/register', deviceController_1.registerFCMToken);
-// FCM Token deaktif etme
 router.post('/fcm/unregister', deviceController_1.unregisterFCMToken);
 exports.default = router;
