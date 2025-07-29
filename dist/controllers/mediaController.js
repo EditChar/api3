@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mediaHealthCheck = exports.deleteMedia = exports.getMediaUrls = exports.completeMediaUpload = exports.generatePresignedUpload = void 0;
 const mediaService_1 = __importDefault(require("../services/mediaService"));
 const express_validator_1 = require("express-validator");
+const socket_1 = __importDefault(require("../config/socket"));
+const database_1 = __importDefault(require("../config/database"));
 const mediaService = mediaService_1.default.getInstance();
 /**
  * Generate presigned URL for media upload
@@ -329,6 +331,55 @@ exports.deleteMedia = [
                     mediaId,
                     duration: Date.now() - startTime
                 });
+                // 🔄 REALTIME MEDIA DELETION EVENT
+                try {
+                    // Get message info for socket event
+                    const messageResult = await database_1.default.query(`
+            SELECT m.id as message_id, m.chat_room_id, cr.user1_id, cr.user2_id
+            FROM messages m
+            JOIN chats cr ON cr.id = m.chat_room_id
+            WHERE m.content = $1 AND m.sender_id = $2
+            ORDER BY m.created_at DESC
+            LIMIT 1
+          `, [`media:${mediaId}`, userId]);
+                    if (messageResult.rows.length > 0) {
+                        const messageData = messageResult.rows[0];
+                        const otherUserId = messageData.user1_id === userId ? messageData.user2_id : messageData.user1_id;
+                        const socketEvent = {
+                            messageId: messageData.message_id,
+                            roomId: messageData.chat_room_id,
+                            status: 'deleted',
+                            isDeleted: true,
+                            userId: userId,
+                            mediaId: mediaId
+                        };
+                        console.log('📡 [Media Delete] Sending realtime event:', {
+                            correlationId,
+                            event: 'message_status_updated',
+                            targetUser: otherUserId,
+                            messageId: messageData.message_id,
+                            roomId: messageData.chat_room_id
+                        });
+                        // Send to other user in the room
+                        await socket_1.default.getInstance().sendToUser(otherUserId, 'message_status_updated', socketEvent);
+                        console.log('✅ [Media Delete] Realtime event sent successfully');
+                    }
+                    else {
+                        console.warn('⚠️ [Media Delete] Message not found for realtime event:', {
+                            correlationId,
+                            mediaId,
+                            userId
+                        });
+                    }
+                }
+                catch (socketError) {
+                    console.error('❌ [Media Delete] Failed to send realtime event:', {
+                        correlationId,
+                        mediaId,
+                        error: socketError instanceof Error ? socketError.message : 'Unknown socket error'
+                    });
+                    // Don't fail the response - media was deleted successfully
+                }
                 res.status(200).json(response);
             }
             else {

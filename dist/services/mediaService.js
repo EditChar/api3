@@ -240,7 +240,7 @@ class MediaService {
                 Bucket: BUCKET_NAME,
                 Key: s3Key,
                 ContentType: contentType,
-                Expires: 300 // 5 minutes
+                Expires: 24 * 60 * 60 // 24 hours (chat media should be accessible)
             });
             console.log('✅ S3 Presigned PUT URL generated (simplified):', {
                 mediaId,
@@ -249,7 +249,7 @@ class MediaService {
                 url: presignedUrl.substring(0, 100) + '...',
                 contentType,
                 signatureType: 'AWS4-HMAC-SHA256-SIMPLIFIED',
-                expires: '300s (5min)'
+                expires: '24h'
             });
             // Store media metadata in database
             console.log('💾 [MediaService] Database insert yapılıyor:', {

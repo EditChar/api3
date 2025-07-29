@@ -20,7 +20,7 @@ const AVATAR_SIZES = {
   small: { width: 100, height: 100 },
   medium: { width: 200, height: 200 },
   large: { width: 400, height: 400 },
-  original: { width: 800, height: 800 } // Max original size
+  original: { width: 1920, height: 1920 } // High-res for full-screen viewing
 };
 
 interface AvatarUploadResult {
@@ -86,11 +86,12 @@ export class AvatarService {
       try {
         optimizedImages[sizeName] = await sharp(buffer)
           .resize(dimensions.width, dimensions.height, {
-            fit: 'cover',
-            position: 'center'
+            fit: sizeName === 'original' ? 'inside' : 'cover', // Original için crop yapma
+            position: 'center',
+            withoutEnlargement: true // Küçük resimleri büyütme
           })
           .jpeg({
-            quality: sizeName === 'thumbnail' ? 70 : 85,
+            quality: sizeName === 'original' ? 95 : (sizeName === 'thumbnail' ? 70 : 85),
             progressive: true
           })
           .toBuffer();

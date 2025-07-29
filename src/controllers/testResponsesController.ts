@@ -102,9 +102,12 @@ export const submitTestResponse = async (req: AuthenticatedRequest, res: Respons
 
 // Kullanıcının genel puanını güncelleme helper fonksiyonu
 const updateUserScore = async (client: any, userId: number) => {
-  // Kullanıcının toplam puanını ve tamamladığı test sayısını hesapla
+  // Kullanıcının toplam puanını ve tamamladığı GÖRÜNÜR test sayısını hesapla
   const userStatsQuery = await client.query(
-    'SELECT COUNT(*) as completed_tests, COALESCE(SUM(test_score), 0) as total_score FROM user_test_responses WHERE user_id = $1',
+    `SELECT COUNT(*) as completed_tests, COALESCE(SUM(utr.test_score), 0) as total_score 
+     FROM user_test_responses utr
+     JOIN tests t ON utr.test_id = t.id
+     WHERE utr.user_id = $1 AND t.deleted_at IS NULL AND t.is_visible = true`,
     [userId]
   );
 

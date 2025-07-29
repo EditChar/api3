@@ -153,7 +153,36 @@ const getUserProfile = async (req, res) => {
             return res.status(404).json({ message: 'User not found.' });
         }
         const user = result.rows[0];
-        res.status(200).json({ ...user });
+        // 🖼️ Get avatar URLs in all sizes if avatar exists
+        let avatarUrls = null;
+        if (user.avatar_url && userId) {
+            try {
+                // Get user's latest avatar ID
+                const avatarQuery = await database_1.default.query('SELECT id FROM avatar_files WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [userId]);
+                if (avatarQuery.rows.length > 0) {
+                    const avatarId = avatarQuery.rows[0].id;
+                    const avatarResult = await avatarService.getAvatarUrls(avatarId);
+                    if (avatarResult) {
+                        avatarUrls = avatarResult;
+                        console.log('✅ [Profile] Avatar URLs retrieved:', {
+                            userId,
+                            avatarId,
+                            sizes: Object.keys(avatarResult),
+                            originalSize: avatarResult.original ? 'available' : 'missing'
+                        });
+                    }
+                }
+            }
+            catch (avatarError) {
+                console.warn('⚠️ [Profile] Failed to get avatar URLs:', avatarError);
+                // Continue with basic avatar_url
+            }
+        }
+        const response = {
+            ...user,
+            avatar_urls: avatarUrls // ✨ All avatar sizes for full-screen viewing
+        };
+        res.status(200).json(response);
     }
     catch (error) {
         console.error('Get profile error:', error);

@@ -10,6 +10,8 @@ import {
   MediaDeleteResponse 
 } from '../models/Media';
 import { body, param, validationResult } from 'express-validator';
+import SocketManager from '../config/socket';
+import pool from '../config/database';
 
 const mediaService = MediaService.getInstance();
 
@@ -377,6 +379,60 @@ export const deleteMedia = [
           mediaId,
           duration: Date.now() - startTime
         });
+
+        // 🔄 REALTIME MEDIA DELETION EVENT
+        try {
+          // Get message info for socket event
+          const messageResult = await pool.query(`
+            SELECT m.id as message_id, m.chat_room_id, cr.user1_id, cr.user2_id
+            FROM messages m
+            JOIN chats cr ON cr.id = m.chat_room_id
+            WHERE m.content = $1 AND m.sender_id = $2
+            ORDER BY m.created_at DESC
+            LIMIT 1
+          `, [`media:${mediaId}`, userId]);
+
+          if (messageResult.rows.length > 0) {
+            const messageData = messageResult.rows[0];
+            const otherUserId = messageData.user1_id === userId ? messageData.user2_id : messageData.user1_id;
+            
+            const socketEvent = {
+              messageId: messageData.message_id,
+              roomId: messageData.chat_room_id,
+              status: 'deleted',
+              isDeleted: true,
+              userId: userId,
+              mediaId: mediaId
+            };
+
+            console.log('📡 [Media Delete] Sending realtime event:', {
+              correlationId,
+              event: 'message_status_updated',
+              targetUser: otherUserId,
+              messageId: messageData.message_id,
+              roomId: messageData.chat_room_id
+            });
+
+            // Send to other user in the room
+            await SocketManager.getInstance().sendToUser(otherUserId, 'message_status_updated', socketEvent);
+            
+            console.log('✅ [Media Delete] Realtime event sent successfully');
+          } else {
+            console.warn('⚠️ [Media Delete] Message not found for realtime event:', {
+              correlationId,
+              mediaId,
+              userId
+            });
+          }
+        } catch (socketError) {
+          console.error('❌ [Media Delete] Failed to send realtime event:', {
+            correlationId,
+            mediaId,
+            error: socketError instanceof Error ? socketError.message : 'Unknown socket error'
+          });
+          // Don't fail the response - media was deleted successfully
+        }
+
         res.status(200).json(response);
       } else {
         console.warn('Media deletion failed:', {

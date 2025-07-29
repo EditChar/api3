@@ -34,8 +34,8 @@ export const getMatches = async (req: AuthenticatedRequest, res: Response) => {
 
     const currentUser = userResult.rows[0];
 
-    // Kullanıcının tüm testleri tamamlayıp tamamlamadığını kontrol edelim
-    const totalTestsResult = await pool.query('SELECT COUNT(*) as total_count FROM tests');
+    // Kullanıcının tüm GÖRÜNÜR testleri tamamlayıp tamamlamadığını kontrol edelim
+    const totalTestsResult = await pool.query('SELECT COUNT(*) as total_count FROM tests WHERE deleted_at IS NULL AND is_visible = true');
     const totalTests = parseInt(totalTestsResult.rows[0].total_count);
 
     if (currentUser.completed_tests_count < totalTests) {
@@ -144,7 +144,7 @@ export const checkMatchEligibility = async (req: AuthenticatedRequest, res: Resp
       WHERE u.id = $1
     `, [userId]);
 
-    const totalTestsResult = await pool.query('SELECT COUNT(*) as total_count FROM tests');
+    const totalTestsResult = await pool.query('SELECT COUNT(*) as total_count FROM tests WHERE deleted_at IS NULL AND is_visible = true');
     const totalTests = parseInt(totalTestsResult.rows[0].total_count);
 
     const userTestStatus = userTestStatusResult.rows[0];

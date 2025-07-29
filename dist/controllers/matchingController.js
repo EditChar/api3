@@ -32,8 +32,8 @@ const getMatches = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         const currentUser = userResult.rows[0];
-        // Kullanıcının tüm testleri tamamlayıp tamamlamadığını kontrol edelim
-        const totalTestsResult = await database_1.default.query('SELECT COUNT(*) as total_count FROM tests');
+        // Kullanıcının tüm GÖRÜNÜR testleri tamamlayıp tamamlamadığını kontrol edelim
+        const totalTestsResult = await database_1.default.query('SELECT COUNT(*) as total_count FROM tests WHERE deleted_at IS NULL AND is_visible = true');
         const totalTests = parseInt(totalTestsResult.rows[0].total_count);
         if (currentUser.completed_tests_count < totalTests) {
             return res.status(400).json({
@@ -133,7 +133,7 @@ const checkMatchEligibility = async (req, res) => {
       LEFT JOIN user_scores us ON u.id = us.user_id
       WHERE u.id = $1
     `, [userId]);
-        const totalTestsResult = await database_1.default.query('SELECT COUNT(*) as total_count FROM tests');
+        const totalTestsResult = await database_1.default.query('SELECT COUNT(*) as total_count FROM tests WHERE deleted_at IS NULL AND is_visible = true');
         const totalTests = parseInt(totalTestsResult.rows[0].total_count);
         const userTestStatus = userTestStatusResult.rows[0];
         const isEligible = userTestStatus.completed_tests >= totalTests;
